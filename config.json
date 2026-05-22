@@ -1,0 +1,11 @@
+{
+  "TargetSteamId64": "76561198123456789",
+  "CommendFriendly": true,
+  "CommendLeader": true,
+  "CommendTeacher": true,
+  "CooldownHours": 12,
+  "LoginDelayMs": 5000,
+  "BatchSize": 10,
+  "BatchDelayMs": 30000,
+  "AccountsFile": "accounts.txt"
+}

@@ -1,0 +1,8 @@
+# Формат: логин:пароль:почта:пароль_от_почты
+# Почта на notletters.com (imap.notletters.com:993)
+# Примеры:
+# farmer1:pass123:farmer1@notletters.com:emailpass1
+# farmer2:pass456:farmer2@notletters.com:emailpass2
+# 
+# Если аккаунт без Steam Guard — можно без почты:
+# farmer3:pass789

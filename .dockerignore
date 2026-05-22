@@ -1,0 +1,7 @@
+bin/
+obj/
+publish/
+data/
+*.md
+server/
+launch_bots.sh

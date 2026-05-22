@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 Commend Farm</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.header h1{font-size:18px;color:#58a6ff}
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.status-dot.running{background:#3fb950;box-shadow:0 0 8px #3fb950}
+.status-dot.stopped{background:#f85149}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.btn-green{background:#238636;color:#fff}
+.btn-green:hover{background:#2ea043}
+.btn-red{background:#da3633;color:#fff}
+.btn-red:hover{background:#f85149}
+.btn-blue{background:#1f6feb;color:#fff}
+.btn-blue:hover{background:#388bfd}
+.btn-gray{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
+.btn-gray:hover{background:#30363d}
+.btn-sm{padding:4px 10px;font-size:11px}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px}
+.stat-card .label{font-size:11px;color:#8b949e;margin-bottom:2px}
+.stat-card .value{font-size:26px;font-weight:700}
+.stat-card .value.green{color:#3fb950}
+.stat-card .value.red{color:#f85149}
+.stat-card .value.blue{color:#58a6ff}
+.stat-card .value.yellow{color:#d29922}
+.section{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:16px;overflow:hidden}
+.section-header{padding:10px 16px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.section-header h2{font-size:14px;font-weight:600}
+.section-body{padding:12px 16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 10px;font-size:11px;color:#8b949e;background:#0d1117;border-bottom:1px solid #30363d}
+td{padding:6px 10px;font-size:13px;border-bottom:1px solid #21262d}
+tr:hover{background:#1c2128}
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600}
+.badge-ok{background:#1b3826;color:#3fb950}
+.badge-guard{background:#38291b;color:#d29922}
+.badge-banned{background:#381b1b;color:#f85149}
+.badge-failed{background:#381b1b;color:#f85149}
+.badge-ready{background:#1b2638;color:#58a6ff}
+.badge-cooldown{background:#382e1b;color:#d29922}
+.badge-error{background:#381b1b;color:#f85149}
+.logs{max-height:300px;overflow-y:auto;font-family:'Consolas',monospace;font-size:12px;padding:12px}
+.logs div{padding:2px 0;border-bottom:1px solid #21262d}
+.progress-bar{height:4px;background:#21262d;border-radius:2px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;background:#238636;transition:width .3s}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{padding:8px 16px;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-bottom:none}
+.tab.active{background:#161b22;color:#c9d1d9}
+.input{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;width:100%}
+.input:focus{outline:none;border-color:#58a6ff}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.form-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.mt-8{margin-top:8px}
+.server-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+.server-info .item{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px}
+.server-info .item .lbl{font-size:11px;color:#8b949e}
+.server-info .item .val{font-size:14px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="flex">
+    <h1>CS2 Commend Farm</h1>
+    <span id="statusDot" class="status-dot stopped"></span>
+    <span id="statusText" style="font-size:13px;color:#8b949e">Остановлен</span>
+  </div>
+  <div class="flex">
+    <button class="btn btn-green" onclick="startFarm()" id="btnStart">▶ Запустить</button>
+    <button class="btn btn-red" onclick="stopFarm()" id="btnStop" style="display:none">■ Остановить</button>
+    <button class="btn btn-blue" onclick="checkAll()">✓ Проверить все</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="accounts" onclick="showTab('accounts')">Аккаунты</div>
+    <div class="tab" data-tab="server" onclick="showTab('server')">Сервер</div>
+    <div class="tab" data-tab="config" onclick="showTab('config')">Конфиг</div>
+    <div class="tab" data-tab="logs" onclick="showTab('logs')">Логи</div>
+  </div>
+
+  <div id="tab-accounts">
+    <div class="section">
+      <div class="section-header">
+        <h2>Аккаунты (<span id="accCount">0</span>)</h2>
+        <input class="input" style="width:200px" placeholder="Поиск..." oninput="renderAccounts()" id="searchInput">
+      </div>
+      <div class="section-body">
+        <div class="form-row">
+          <input class="input" id="addLogin" placeholder="Логин">
+          <input class="input" id="addPass" placeholder="Пароль" type="password">
+          <input class="input" id="addEmail" placeholder="Почта">
+          <input class="input" id="addEmailPass" placeholder="Пароль почты" type="password">
+          <button class="btn btn-green" onclick="addAccount()">+</button>
+        </div>
+        <div style="font-size:11px;color:#8b949e;margin-bottom:8px">Почта notletters.com нужна для авто-ввода Steam Guard</div>
+        <table>
+          <thead>
+            <tr><th>Логин</th><th>Статус</th><th>Почта</th><th>Сессия</th><th>Проверка</th><th>Комменд</th><th></th></tr>
+          </thead>
+          <tbody id="accountsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-server" style="display:none">
+    <div class="section">
+      <div class="section-header">
+        <h2>CS2 Dedicated Server</h2>
+        <div class="flex">
+          <button class="btn btn-blue btn-sm" id="btnServerInstall" onclick="serverInstall()">Установить</button>
+          <button class="btn btn-green btn-sm" id="btnServerStart" onclick="serverStart()">Запустить</button>
+          <button class="btn btn-red btn-sm" id="btnServerStop" onclick="serverStop()" style="display:none">Остановить</button>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="server-info" id="serverInfo">
+          <div class="item"><div class="lbl">Статус</div><div class="val" id="srvStatus">—</div></div>
+          <div class="item"><div class="lbl">Match ID</div><div class="val" id="srvMatchId">—</div></div>
+          <div class="item"><div class="lbl">Connect</div><div class="val" id="srvConnect" style="font-size:12px">—</div></div>
+        </div>
+        <div style="font-size:12px;color:#8b949e">
+          Сервер поднимается для получения реального match_id. Комменды с реальным match_id проходят надёжнее.
+          Запусти сервер → зайди на него → дождись матча → match_id подхватится автоматически.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-config" style="display:none">
+    <div class="section">
+      <div class="section-header">
+        <h2>Конфигурация</h2>
+        <button class="btn btn-green btn-sm" onclick="saveConfig()">Сохранить</button>
+      </div>
+      <div class="section-body">
+        <div class="form-grid">
+          <div><label style="font-size:11px;color:#8b949e">Target SteamID64</label><input class="input" id="cfgTargetId" placeholder="76561198..."></div>
+          <div><label style="font-size:11px;color:#8b949e">Кулдаун (часы)</label><input class="input" id="cfgCooldown" type="number" value="12"></div>
+          <div><label style="font-size:11px;color:#8b949e">Задержка логина (мс)</label><input class="input" id="cfgLoginDelay" type="number" value="5000"></div>
+          <div><label style="font-size:11px;color:#8b949e">Размер батча</label><input class="input" id="cfgBatchSize" type="number" value="10"></div>
+          <div><label style="font-size:11px;color:#8b949e">Задержка батча (мс)</label><input class="input" id="cfgBatchDelay" type="number" value="30000"></div>
+          <div><label style="font-size:11px;color:#8b949e">Match ID (0=с сервера)</label><input class="input" id="cfgMatchId" type="number" value="8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-logs" style="display:none">
+    <div class="section">
+      <div class="section-header">
+        <h2>Логи</h2>
+        <button class="btn btn-gray btn-sm" onclick="loadLogs()">Обновить</button>
+      </div>
+      <div class="logs" id="logsContainer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let state={isRunning:false,totalAccounts:0,successCount:0,failCount:0,remaining:0,accounts:[],targetSteamId64:'',server:null};
+
+async function api(method,path,body){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  return fetch(path,opts).then(r=>r.json());
+}
+
+async function loadState(){
+  try{
+    const r=await fetch('/api/status');
+    state=await r.json();
+    updateUI();
+  }catch(e){}
+}
+
+function updateUI(){
+  document.getElementById('statusDot').className='status-dot '+(state.isRunning?'running':'stopped');
+  document.getElementById('statusText').textContent=state.isRunning?'Работает':'Остановлен';
+  document.getElementById('btnStart').style.display=state.isRunning?'none':'';
+  document.getElementById('btnStop').style.display=state.isRunning?'':'none';
+  document.getElementById('accCount').textContent=state.totalAccounts;
+
+  const total=state.totalAccounts||1;
+  const pct=Math.round(((state.successCount+state.failCount)/total)*100);
+  const ws=state.accounts?.filter(a=>a.hasSession).length||0;
+  const banned=state.accounts?.filter(a=>a.status==='banned').length||0;
+  const guard=state.accounts?.filter(a=>a.status==='guard').length||0;
+
+  document.getElementById('stats').innerHTML=`
+    <div class="stat-card"><div class="label">Аккаунтов</div><div class="value blue">${state.totalAccounts}</div></div>
+    <div class="stat-card"><div class="label">Успешно</div><div class="value green">${state.successCount}</div></div>
+    <div class="stat-card"><div class="label">Ошибок</div><div class="value red">${state.failCount}</div></div>
+    <div class="stat-card"><div class="label">С сессией</div><div class="value yellow">${ws}</div></div>
+    <div class="stat-card"><div class="label">Забанено</div><div class="value red">${banned}</div></div>
+    <div class="stat-card"><div class="label">Guard</div><div class="value yellow">${guard}</div></div>
+    <div class="stat-card"><div class="label">Прогресс</div><div class="value">${pct}%</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
+  `;
+  renderAccounts();
+  renderServer();
+
+  if(!document.getElementById('cfgTargetId').value)
+    document.getElementById('cfgTargetId').value=state.targetSteamId64||'';
+}
+
+function fmtTime(dt){
+  if(!dt)return '—';
+  return new Date(dt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function esc(s){return s?.replace(/'/g,"\\'").replace(/"/g,'')||''}
+
+function renderAccounts(){
+  const q=document.getElementById('searchInput')?.value?.toLowerCase()||'';
+  const accs=(state.accounts||[]).filter(a=>!q||a.username.toLowerCase().includes(q));
+  document.getElementById('accountsTable').innerHTML=accs.map(a=>`
+    <tr>
+      <td><strong>${esc(a.username)}</strong></td>
+      <td><span class="badge badge-${a.status}">${a.status.toUpperCase()}</span></td>
+      <td>${a.hasEmail?'✓':'✗'}</td>
+      <td>${a.hasSession?'🔑':'✗'}</td>
+      <td style="font-size:11px;color:#8b949e">${a.checkResult||'—'}</td>
+      <td style="font-size:12px">${fmtTime(a.lastUsed)}</td>
+      <td><button class="btn btn-red btn-sm" onclick="removeAccount('${esc(a.username)}')">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderServer(){
+  const srv=state.server;
+  const running=srv?.isRunning;
+  document.getElementById('srvStatus').textContent=running?'🟢 Работает':'⬛ Остановлен';
+  document.getElementById('srvMatchId').textContent=srv?.lastMatchId||'—';
+  document.getElementById('srvConnect').textContent=srv?.connectCommand||'—';
+  document.getElementById('btnServerStart').style.display=running?'none':'';
+  document.getElementById('btnServerStop').style.display=running?'':'none';
+}
+
+async function addAccount(){
+  const u=document.getElementById('addLogin').value.trim();
+  const p=document.getElementById('addPass').value.trim();
+  const e=document.getElementById('addEmail').value.trim()||undefined;
+  const ep=document.getElementById('addEmailPass').value.trim()||undefined;
+  if(!u||!p)return alert('Логин и пароль обязательны');
+  const r=await api('POST','/api/accounts/add',{username:u,password:p,email:e,emailPassword:ep});
+  if(r.error)alert(r.error);
+  else{document.getElementById('addLogin').value='';document.getElementById('addPass').value='';document.getElementById('addEmail').value='';document.getElementById('addEmailPass').value='';}
+  loadState();
+}
+
+async function removeAccount(u){
+  if(!confirm('Удалить '+u+'?'))return;
+  const cs=confirm('Очистить сессию тоже?');
+  await api('POST','/api/accounts/remove',{username:u,clearSession:cs});
+  loadState();
+}
+
+async function checkAll(){
+  if(!confirm('Проверить все аккаунты?'))return;
+  await api('POST','/api/accounts/check-all');
+  loadState();
+}
+
+async function startFarm(){await api('POST','/api/start');loadState();}
+async function stopFarm(){await api('POST','/api/stop');loadState();}
+
+async function serverInstall(){
+  await api('POST','/api/server/install');
+  loadState();
+}
+
+async function serverStart(){
+  await api('POST','/api/server/start',{});
+  loadState();
+}
+
+async function serverStop(){
+  await api('POST','/api/server/stop');
+  loadState();
+}
+
+async function saveConfig(){
+  await api('POST','/api/config/update',{
+    targetSteamId64:document.getElementById('cfgTargetId').value.trim()||null,
+    cooldownHours:parseInt(document.getElementById('cfgCooldown').value)||null,
+    loginDelayMs:parseInt(document.getElementById('cfgLoginDelay').value)||null,
+    batchSize:parseInt(document.getElementById('cfgBatchSize').value)||null,
+    batchDelayMs:parseInt(document.getElementById('cfgBatchDelay').value)||null,
+    matchId:parseInt(document.getElementById('cfgMatchId').value)||null,
+  });
+  alert('Сохранено');
+}
+
+async function loadLogs(){
+  const logs=await(await fetch('/api/logs')).json();
+  const c=document.getElementById('logsContainer');
+  c.innerHTML=logs.map(l=>`<div>${l}</div>`).join('');
+  c.scrollTop=c.scrollHeight;
+}
+
+function showTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  ['accounts','server','config','logs'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===tab?'':'none';
+  });
+  if(tab==='logs')loadLogs();
+  if(tab==='server')loadState();
+}
+
+setInterval(loadState,3000);
+loadState();
+</script>
+</body>
+</html>

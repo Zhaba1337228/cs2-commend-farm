@@ -1,0 +1,16 @@
+[Unit]
+Description=CS2 Commend Farm
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cs2-commend-farm
+ExecStart=/usr/bin/dotnet publish/CommendFarm.dll --loop
+Restart=always
+RestartSec=30
+User=root
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://0.0.0.0:5050
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+services:
+  farm:
+    build: .
+    container_name: cs2-commend-farm
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FARM_DATA_DIR=/app/data
+      - ASPNETCORE_ENVIRONMENT=Production
