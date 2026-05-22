@@ -25,6 +25,8 @@ public class CommendBot
     private readonly TaskCompletionSource<bool> _commendResultTcs = new();
     private TaskCompletionSource<bool> _connectedTcs = new();
 
+    public string? LastError { get; private set; }
+
     private const uint CS2_APP_ID = 730;
 
     public CommendBot(
@@ -286,11 +288,13 @@ public class CommendBot
                                                  ex.Message.Contains("verification", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogError("[{User}] Steam Guard failed: {Error}", _account.Username, ex.Message);
+            LastError = $"Guard: {ex.Message}";
             return BotResult.GuardFailed;
         }
         catch (AuthenticationException ex)
         {
             _logger.LogError("[{User}] Authentication failed: {Error}", _account.Username, ex.Message);
+            LastError = $"Auth: {ex.Message}";
             return BotResult.LoginFailed;
         }
         catch (OperationCanceledException)
@@ -376,6 +380,7 @@ public class CommendBot
         if (cb.Result != EResult.OK)
         {
             _logger.LogError("[{User}] Login failed: {Result}", _account.Username, cb.Result);
+            LastError = $"Steam {cb.Result}";
             var result = cb.Result == EResult.AccountDisabled || cb.Result == EResult.Banned
                 ? BotResult.Banned
                 : cb.Result == EResult.AccountLogonDenied

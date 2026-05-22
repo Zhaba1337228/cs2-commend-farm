@@ -439,8 +439,17 @@ public static class WebApi
                                 "failed";
                             info.LastUsed = DateTime.UtcNow;
 
-                            if (result == BotResult.Success) loggedIn++;
-                            Log($"Auto-login [{acc.Username}]: {result}");
+                            if (result == BotResult.Success)
+                            {
+                                loggedIn++;
+                                info.LastError = null;
+                                Log($"Auto-login [{acc.Username}] OK");
+                            }
+                            else
+                            {
+                                info.LastError = bot.LastError ?? result.ToString();
+                                Log($"Auto-login [{acc.Username}] FAIL: {info.LastError}");
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -563,18 +572,14 @@ public static class WebApi
                         if (result == BotResult.Success)
                         {
                             ok++;
+                            info.LastError = null;
                             Log($"Session [{acc.Username}] OK");
                         }
                         else
                         {
                             fail++;
-                            var reason = result == BotResult.Banned ? "account banned/disabled" :
-                                result == BotResult.GuardNeeded ? "Steam Guard required, no email configured" :
-                                result == BotResult.GuardFailed ? "Steam Guard code failed" :
-                                result == BotResult.LoginFailed ? "invalid credentials or connection error" :
-                                result.ToString();
-                            info.LastError = reason;
-                            Log($"Session [{acc.Username}] FAIL: {reason}");
+                            info.LastError = bot.LastError ?? result.ToString();
+                            Log($"Session [{acc.Username}] FAIL: {info.LastError}");
                         }
                     }
                     catch (OperationCanceledException)
