@@ -63,6 +63,18 @@
       "accessCount": 2,
       "lastAccessed": 1779480126650,
       "type": "file"
+    },
+    {
+      "path": "Dockerfile",
+      "accessCount": 2,
+      "lastAccessed": 1779480338630,
+      "type": "file"
+    },
+    {
+      "path": "docker-compose.yml",
+      "accessCount": 2,
+      "lastAccessed": 1779480393591,
+      "type": "file"
     }
   ],
   "userDirectives": []

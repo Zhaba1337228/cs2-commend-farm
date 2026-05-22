@@ -5,8 +5,15 @@ services:
     restart: unless-stopped
     ports:
       - "5050:5050"
+      - "27015:27015/udp"
+      - "27015:27015/tcp"
+      - "27020:27020/udp"
     volumes:
       - ./data:/app/data
+      - cs2-server:/opt/cs2-server
     environment:
       - FARM_DATA_DIR=/app/data
       - ASPNETCORE_ENVIRONMENT=Production
+
+volumes:
+  cs2-server:
