@@ -14,6 +14,7 @@ public class Cs2ServerManager
     private bool _matchLive;
     private string _status = "not_installed";
     private string _lastError = "";
+    private string _installProgress = "";
     private int _serverPort;
 
     public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
@@ -70,7 +71,7 @@ public class Cs2ServerManager
         psi = new ProcessStartInfo
         {
             FileName = "bash",
-            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1 | tee '{_serverDir}/install.log'\"",
+            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -78,15 +79,41 @@ public class Cs2ServerManager
         };
 
         using var process2 = Process.Start(psi)!;
-        var output = await process2.StandardOutput.ReadToEndAsync(ct);
+        var sb = new System.Text.StringBuilder();
+
+        process2.OutputDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrEmpty(e.Data)) return;
+            sb.AppendLine(e.Data);
+
+            // Track progress from SteamCMD output
+            if (e.Data.Contains("downloading", StringComparison.OrdinalIgnoreCase) ||
+                e.Data.Contains("update", StringComparison.OrdinalIgnoreCase) ||
+                e.Data.Contains("installing", StringComparison.OrdinalIgnoreCase))
+            {
+                _installProgress = e.Data.Trim();
+                if (_installProgress.Length > 80) _installProgress = _installProgress[..80];
+            }
+            else if (e.Data.Contains("Success", StringComparison.OrdinalIgnoreCase) ||
+                     e.Data.Contains("installed", StringComparison.OrdinalIgnoreCase))
+            {
+                _installProgress = "Installed successfully";
+            }
+        };
+        process2.BeginOutputReadLine();
+        process2.BeginErrorReadLine();
+
         await process2.WaitForExitAsync(ct);
+
+        var output = sb.ToString();
+        await File.WriteAllTextAsync(Path.Combine(_serverDir, "install.log"), output, ct);
 
         if (process2.ExitCode != 0)
         {
-            _logger.LogError("CS2 server install failed: {Output}", output);
+            _logger.LogError("CS2 server install failed (exit {Code})", process2.ExitCode);
             _status = "install_failed";
+            _installProgress = "";
 
-            // Extract last meaningful error from output
             var lastError = output.Split('\n')
                 .Where(l => l.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
                             l.Contains("failed", StringComparison.OrdinalIgnoreCase))
@@ -256,6 +283,7 @@ public class Cs2ServerManager
         LastMatchId = _lastMatchId,
         MatchLive = _matchLive,
         LastError = _lastError,
+        InstallProgress = _installProgress,
         InstallLog = File.Exists(Path.Combine(_serverDir, "install.log"))
             ? File.ReadAllText(Path.Combine(_serverDir, "install.log"))
             : null,
@@ -289,5 +317,6 @@ public class ServerInfo
     public string LastMatchId { get; set; } = "";
     public bool MatchLive { get; set; }
     public string LastError { get; set; } = "";
+    public string InstallProgress { get; set; } = "";
     public string? InstallLog { get; set; }
 }
