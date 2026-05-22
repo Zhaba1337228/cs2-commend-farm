@@ -14,7 +14,6 @@ public class Cs2ServerManager
     private string _status = "not_installed";
     private string _lastError = "";
     private int _serverPort;
-    private bool _installRequested;
 
     public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
     public string LastMatchId => _lastMatchId;
@@ -36,7 +35,6 @@ public class Cs2ServerManager
         }
 
         _status = "installing";
-        _installRequested = true;
         _logger.LogInformation("Installing CS2 dedicated server...");
 
         Directory.CreateDirectory(_serverDir);

@@ -520,7 +520,7 @@ public static class WebApi
             return Results.Json(new { status = "removed" });
         });
 
-        app.MapPost("/api/accounts/create-sessions", async (AccountChecker _) =>
+        app.MapPost("/api/accounts/create-sessions", async () =>
         {
             if (_config == null || _sessionStore == null)
                 return Results.Json(new { error = "Not initialized" });
