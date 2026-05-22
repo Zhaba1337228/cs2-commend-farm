@@ -42,20 +42,20 @@
   "hotPaths": [
     {
       "path": "src\\CommendFarm\\CommendBot.cs",
-      "accessCount": 25,
-      "lastAccessed": 1779484877077,
+      "accessCount": 26,
+      "lastAccessed": 1779485411617,
       "type": "file"
     },
     {
       "path": "src\\CommendFarm\\WebApi.cs",
-      "accessCount": 23,
-      "lastAccessed": 1779483873226,
+      "accessCount": 24,
+      "lastAccessed": 1779485478290,
       "type": "file"
     },
     {
       "path": "src\\CommendFarm\\Cs2ServerManager.cs",
-      "accessCount": 19,
-      "lastAccessed": 1779484170178,
+      "accessCount": 20,
+      "lastAccessed": 1779485371790,
       "type": "file"
     },
     {
@@ -66,8 +66,14 @@
     },
     {
       "path": "src\\CommendFarm\\Program.cs",
-      "accessCount": 11,
-      "lastAccessed": 1779482202220,
+      "accessCount": 12,
+      "lastAccessed": 1779485437021,
+      "type": "file"
+    },
+    {
+      "path": "docker-compose.yml",
+      "accessCount": 4,
+      "lastAccessed": 1779485399412,
       "type": "file"
     },
     {
@@ -77,15 +83,21 @@
       "type": "file"
     },
     {
-      "path": "docker-compose.yml",
+      "path": "src\\CommendFarm\\AccountChecker.cs",
       "accessCount": 2,
-      "lastAccessed": 1779480393591,
+      "lastAccessed": 1779485425046,
       "type": "file"
     },
     {
-      "path": "src\\CommendFarm\\AccountChecker.cs",
+      "path": "src\\CommendFarm\\Config.cs",
+      "accessCount": 2,
+      "lastAccessed": 1779485464805,
+      "type": "directory"
+    },
+    {
+      "path": "deploy.sh",
       "accessCount": 1,
-      "lastAccessed": 1779484952739,
+      "lastAccessed": 1779485384160,
       "type": "file"
     }
   ],

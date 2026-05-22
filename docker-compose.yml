@@ -1,19 +1,38 @@
 services:
   farm:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: cs2-commend-farm
     restart: unless-stopped
     ports:
       - "5050:5050"
-      - "27015:27015/udp"
-      - "27015:27015/tcp"
-      - "27020:27020/udp"
     volumes:
       - ./data:/app/data
-      - cs2-server:/opt/cs2-server
     environment:
       - FARM_DATA_DIR=/app/data
       - ASPNETCORE_ENVIRONMENT=Production
 
-volumes:
   cs2-server:
+    image: cm2network/cs2:latest
+    container_name: cs2-server
+    restart: unless-stopped
+    ports:
+      - "27015:27015/udp"
+      - "27015:27015/tcp"
+      - "27020:27020/udp"
+    volumes:
+      - cs2-data:/home/steam/cs2-dedicated/
+    environment:
+      - CS2_SERVER_HOSTNAME=Commend Farm
+      - CS2_MAP=de_dust2
+      - CS2_MAXROUNDS=1
+      - CS2_WARMUP=1
+      - CS2_WARMUP_DURATION=3600
+      - CS2_RCON_PW=farm${RANDOM:-1234}
+      - CS2_PORT=27015
+      - CS2_LAN=0
+      - TV_PORT=27020
+
+volumes:
+  cs2-data:

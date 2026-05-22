@@ -71,7 +71,7 @@ public class Cs2ServerManager
         psi = new ProcessStartInfo
         {
             FileName = "bash",
-            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1\"",
+            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit +sys_wait_kill 10000 2>&1\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

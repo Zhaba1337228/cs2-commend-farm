@@ -45,7 +45,7 @@ public class CommendBot
         _emailVerifier = new EmailVerifier(emailLogger);
 
         _steamClient = new SteamClient(SteamConfiguration.Create(config =>
-            config.WithProtocolTypes(SteamKit2.ProtocolTypes.Tcp | SteamKit2.ProtocolTypes.WebSocket)));
+            config.WithProtocolTypes(SteamKit2.ProtocolTypes.WebSocket)));
         _callbackManager = new CallbackManager(_steamClient);
         _steamUser = _steamClient.GetHandler<SteamUser>()!;
         _gameCoordinator = _steamClient.GetHandler<SteamGameCoordinator>()!;
