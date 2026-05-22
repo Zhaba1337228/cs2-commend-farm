@@ -23,7 +23,7 @@ public class CommendBot
     private TaskCompletionSource<BotResult> _loginTcs = new();
     private readonly TaskCompletionSource<bool> _gcWelcomeTcs = new();
     private readonly TaskCompletionSource<bool> _commendResultTcs = new();
-    private readonly TaskCompletionSource<bool> _connectedTcs = new();
+    private TaskCompletionSource<bool> _connectedTcs = new();
 
     private const uint CS2_APP_ID = 730;
 
