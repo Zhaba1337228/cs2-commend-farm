@@ -5,10 +5,44 @@
 
 set -e
 
+if [ "$1" = "--local" ] || [ "$1" = "-l" ] || [ -z "$1" ] && [ -z "$FARM_SERVER" ]; then
+    # Локальный деплой — уже на сервере
+    echo "=== Local deploy ==="
+    cd "$(dirname "$0")"
+    mkdir -p data
+
+    if [ ! -f data/config.json ]; then
+    cat > data/config.json << 'CFG'
+{
+  "TargetSteamId64": "76561198123456789",
+  "CommendFriendly": true,
+  "CommendLeader": true,
+  "CommendTeacher": true,
+  "CooldownHours": 12,
+  "LoginDelayMs": 5000,
+  "BatchSize": 10,
+  "BatchDelayMs": 30000,
+  "MatchId": 8,
+  "AccountsFile": "accounts.txt"
+}
+CFG
+    echo "Created data/config.json — не забудь вписать свой SteamID64!"
+    fi
+
+    [ ! -f data/accounts.txt ] && touch data/accounts.txt
+
+    docker compose up -d --build 2>&1
+
+    echo ""
+    echo "=== Готово ==="
+    echo "Панель: http://$(hostname -I | awk '{print $1}'):5050"
+    exit 0
+fi
+
 SERVER="${1:-$FARM_SERVER}"
 if [ -z "$SERVER" ]; then
-    echo "Usage: ./deploy.sh user@host"
-    echo "  or:  FARM_SERVER=user@host ./deploy.sh"
+    echo "Usage: ./deploy.sh --local     # на этом сервере"
+    echo "       ./deploy.sh user@host   # удалённо через ssh"
     exit 1
 fi
 
@@ -16,7 +50,6 @@ REMOTE_DIR="/opt/cs2-commend-farm"
 
 echo "=== Deploying to $SERVER ==="
 
-# Заливаем файлы
 echo "[1/3] Syncing files..."
 rsync -az --delete \
     --exclude='bin/' \
@@ -27,7 +60,6 @@ rsync -az --delete \
     --exclude='*.md' \
     ./ "$SERVER:$REMOTE_DIR/"
 
-# Деплоим на сервере
 echo "[2/3] Building & starting..."
 ssh "$SERVER" bash -s << 'REMOTE'
 set -e
