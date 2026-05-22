@@ -44,11 +44,22 @@ public static class WebApi
     private static AccountManager? _manager;
     private static SessionStore? _sessionStore;
     private static AppConfig? _config;
+    private static TaskCompletionSource _wakeUp = new();
     private static Cs2ServerManager? _serverManager;
     private static readonly List<BotAccount> _botAccounts = new();
     private static string? _accountsFilePath;
 
     public static FarmState State => _state;
+    public static List<BotAccount> GetBotAccounts() => _botAccounts.ToList();
+
+    public static void WakeUp()
+    {
+        _wakeUp.TrySetResult();
+        _wakeUp = new TaskCompletionSource();
+    }
+
+    public static Task WaitForWakeUpAsync(CancellationToken ct) =>
+        Task.WhenAny(_wakeUp.Task, Task.Delay(-1, ct));
 
     public static void Initialize(List<BotAccount> accounts, AppConfig config, AccountManager manager, SessionStore sessionStore, Cs2ServerManager serverManager)
     {
@@ -351,7 +362,7 @@ public static class WebApi
         app.MapGet("/api/logs", () => Results.Json(_recentLogs.ToArray()));
 
         // Account management
-        app.MapPost("/api/accounts/import", (ImportAccountsRequest req) =>
+        app.MapPost("/api/accounts/import", async (ImportAccountsRequest req) =>
         {
             if (string.IsNullOrWhiteSpace(req.Lines))
                 return Results.Json(new { error = "No data provided" });
@@ -359,6 +370,7 @@ public static class WebApi
             var lines = req.Lines.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var added = 0;
             var skipped = 0;
+            var loggedIn = 0;
 
             foreach (var raw in lines)
             {
@@ -386,7 +398,7 @@ public static class WebApi
                     Password = password,
                     Email = email,
                     EmailPassword = emailPass,
-                    Status = "ready",
+                    Status = session?.RefreshToken != null ? "ready" : "pending",
                     HasEmail = acc.HasEmail,
                     HasSession = session?.RefreshToken != null,
                 };
@@ -399,6 +411,50 @@ public static class WebApi
             _state.TotalAccounts = _state.Accounts.Count;
             SaveAccountsToFile();
             Log($"Imported {added} accounts ({skipped} skipped)");
+            if (added > 0) WakeUp();
+
+            // Auto-login imported accounts
+            if (added > 0 && _config != null && _sessionStore != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    Log($"Auto-login: starting for {added} new accounts...");
+                    foreach (var acc in _botAccounts.ToList())
+                    {
+                        if (_accounts.TryGetValue(acc.Username, out var info) && info.Status != "pending") continue;
+
+                        try
+                        {
+                            info.Status = "logging_in";
+                            var botLogger = app.Services.GetRequiredService<ILogger<CommendBot>>();
+                            var bot = new CommendBot(acc, _config, _sessionStore, botLogger);
+                            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+                            var result = await bot.RunAsync(cts.Token);
+
+                            info.HasSession = _sessionStore.Get(acc.Username)?.RefreshToken != null;
+                            info.Status = result == BotResult.Success ? "ok" :
+                                result == BotResult.Banned ? "banned" :
+                                result == BotResult.GuardNeeded || result == BotResult.GuardFailed ? "guard" :
+                                "failed";
+                            info.LastUsed = DateTime.UtcNow;
+
+                            if (result == BotResult.Success) loggedIn++;
+                            Log($"Auto-login [{acc.Username}]: {result}");
+                        }
+                        catch (Exception ex)
+                        {
+                            info.Status = "failed";
+                            info.LastError = ex.Message;
+                            Log($"Auto-login [{acc.Username}] error: {ex.Message}");
+                        }
+
+                        await Task.Delay(2000);
+                    }
+                    Log($"Auto-login done: {loggedIn}/{added} succeeded");
+                });
+            }
+
             return Results.Json(new { added, skipped });
         });
 

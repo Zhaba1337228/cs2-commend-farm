@@ -75,13 +75,13 @@ async Task RunFarmLoopAsync(
             }
         }
 
-        var eligible = accounts.Where(a => !mgr.IsOnCooldown(a.Username)).ToList();
+        var eligible = WebApi.GetBotAccounts().Where(a => !mgr.IsOnCooldown(a.Username)).ToList();
 
         if (eligible.Count == 0)
         {
             WebApi.Log("All accounts on cooldown, waiting...");
             WebApi.State.IsRunning = false;
-            await Task.Delay(TimeSpan.FromMinutes(5), ct);
+            await WebApi.WaitForWakeUpAsync(ct);
             continue;
         }
 
@@ -150,7 +150,8 @@ async Task RunFarmLoopAsync(
 
         try
         {
-            await Task.Delay(TimeSpan.FromHours(cfg.CooldownHours), ct);
+            WebApi.Log($"Cooldown {cfg.CooldownHours}h, or until new accounts added...");
+            await WebApi.WaitForWakeUpAsync(ct);
         }
         catch (OperationCanceledException) { }
     }
