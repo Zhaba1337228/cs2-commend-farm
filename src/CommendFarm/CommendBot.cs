@@ -64,9 +64,18 @@ public class CommendBot
     private async Task<bool> WaitForConnectAsync(CancellationToken ct)
     {
         if (_connectedTcs.Task.IsCompleted) return true;
-        var timeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
+        _logger.LogWarning("[{User}] Waiting for Steam connection...", _account.Username);
+        var timeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
         var completed = await Task.WhenAny(_connectedTcs.Task, timeout);
-        return completed == _connectedTcs.Task && _connectedTcs.Task.Result;
+
+        if (completed != _connectedTcs.Task || !_connectedTcs.Task.IsCompleted)
+        {
+            LastError = "Cannot connect to Steam servers (timeout 30s). Check network/firewall.";
+            _logger.LogError("[{User}] {Error}", _account.Username, LastError);
+            return false;
+        }
+        _logger.LogWarning("[{User}] Steam connected!", _account.Username);
+        return true;
     }
 
     public async Task<BotResult> RunAsync(CancellationToken ct)
@@ -371,7 +380,9 @@ public class CommendBot
 
     private void OnDisconnected(SteamClient.DisconnectedCallback cb)
     {
-        _logger.LogDebug("[{User}] Disconnected", _account.Username);
+        _logger.LogWarning("[{User}] Disconnected (UserInitiated={UserInitiated})", _account.Username, cb.UserInitiated);
+        if (!cb.UserInitiated)
+            LastError = "Steam disconnected unexpectedly";
         _loginTcs.TrySetResult(BotResult.LoginFailed);
     }
 
