@@ -388,7 +388,7 @@ public static class WebApi
             if (!_accounts.TryGetValue(req.Username, out var info))
                 return Results.Json(new { error = "Not found" });
 
-            _accounts.Remove(req.Username);
+            _accounts.TryRemove(req.Username, out _);
             _state.Accounts.Remove(info);
             _state.TotalAccounts = _state.Accounts.Count;
             _botAccounts.RemoveAll(a => a.Username == req.Username);

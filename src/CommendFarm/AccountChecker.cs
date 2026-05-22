@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SteamKit2;
+using SteamKit2.Authentication;
 
 namespace CommendFarm;
 
@@ -26,7 +27,7 @@ public class AccountChecker
         var user = client.GetHandler<SteamUser>()!;
 
         var tcs = new TaskCompletionSource<EResult>();
-        var guardTcs = new TaskCompletionSource<bool>();
+        var guardNeeded = false;
 
         manager.Subscribe<SteamClient.ConnectedCallback>(cb =>
         {
@@ -40,12 +41,14 @@ public class AccountChecker
 
         manager.Subscribe<SteamUser.LoggedOnCallback>(cb =>
         {
+            // In v3, Steam Guard results come as specific EResult values
+            if (cb.Result == EResult.AccountLogonDenied)
+            {
+                guardNeeded = true;
+                tcs.TrySetResult(cb.Result);
+                return;
+            }
             tcs.TrySetResult(cb.Result);
-        });
-
-        manager.Subscribe<SteamUser.SteamGuardCodeCallback>(cb =>
-        {
-            guardTcs.TrySetResult(true);
         });
 
         manager.Subscribe<SteamClient.DisconnectedCallback>(cb =>
@@ -58,7 +61,6 @@ public class AccountChecker
         {
             client.Connect();
 
-            // Pump callbacks
             var pumpTask = Task.Run(async () =>
             {
                 while (!ct.IsCancellationRequested && client.IsConnected)
@@ -68,24 +70,16 @@ public class AccountChecker
                 }
             }, ct);
 
-            // Wait for result
             var timeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
-            var completed = await Task.WhenAny(tcs.Task, guardTcs.Task, timeout);
+            var completed = await Task.WhenAny(tcs.Task, timeout);
 
-            if (completed == guardTcs.Task)
-            {
-                status.HasSteamGuard = true;
-                status.CanLogin = true;
-                status.IsBanned = false;
-            }
-            else if (completed == tcs.Task)
+            if (completed == tcs.Task)
             {
                 var result = tcs.Task.Result;
-                status.CanLogin = result == EResult.OK;
-                status.IsBanned = result == EResult.AccountDisabled || 
-                                  result == EResult.AccountLocked ||
-                                  result == EResult.AccountLogonDenied;
-                status.HasSteamGuard = false;
+                status.HasSteamGuard = guardNeeded || result == EResult.AccountLogonDenied;
+                status.CanLogin = result == EResult.OK || status.HasSteamGuard;
+                status.IsBanned = result == EResult.AccountDisabled ||
+                                  result == EResult.Banned;
             }
             else
             {
@@ -113,8 +107,8 @@ public class AccountStatus
     public bool IsBanned { get; set; }
     public string? Error { get; set; }
     public DateTime CheckedAt { get; set; }
-    
-    public string StatusText => IsBanned ? "BANNED" : 
-        HasSteamGuard ? "GUARD" : 
+
+    public string StatusText => IsBanned ? "BANNED" :
+        HasSteamGuard ? "GUARD" :
         CanLogin ? "OK" : "FAIL";
 }

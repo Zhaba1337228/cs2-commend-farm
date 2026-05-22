@@ -267,7 +267,7 @@ public class CommendBot
     private void OnDisconnected(SteamClient.DisconnectedCallback cb)
     {
         _logger.LogDebug("[{User}] Disconnected", _account.Username);
-        _loginTcs.TrySetResult(false);
+        _loginTcs.TrySetResult(BotResult.LoginFailed);
     }
 
     private void OnLoggedOn(SteamUser.LoggedOnCallback cb)
@@ -275,12 +275,17 @@ public class CommendBot
         if (cb.Result != EResult.OK)
         {
             _logger.LogError("[{User}] Login failed: {Result}", _account.Username, cb.Result);
-            _loginTcs.TrySetResult(false);
+            var result = cb.Result == EResult.AccountDisabled || cb.Result == EResult.Banned
+                ? BotResult.Banned
+                : cb.Result == EResult.AccountLogonDenied
+                    ? BotResult.GuardNeeded
+                    : BotResult.LoginFailed;
+            _loginTcs.TrySetResult(result);
             return;
         }
 
         _logger.LogInformation("[{User}] Logged on successfully", _account.Username);
-        _loginTcs.TrySetResult(true);
+        _loginTcs.TrySetResult(BotResult.Success);
     }
 
     private void OnLoggedOff(SteamUser.LoggedOffCallback cb)
@@ -297,7 +302,7 @@ public class CommendBot
         {
             try
             {
-                var welcome = new ClientGCMsgProtobuf<CMsgGCCStrike15_v2_MatchmakingGC2ClientHello>(cb.Msg);
+                var welcome = new ClientGCMsgProtobuf<CMsgGCCStrike15_v2_MatchmakingGC2ClientHello>(cb.Message);
                 var comm = welcome.Body.commendation;
                 if (comm != null)
                 {
