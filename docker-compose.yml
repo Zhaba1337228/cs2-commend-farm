@@ -9,9 +9,11 @@ services:
       - "5050:5050"
     volumes:
       - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - FARM_DATA_DIR=/app/data
       - ASPNETCORE_ENVIRONMENT=Production
+      - DOCKER_HOST=unix:///var/run/docker.sock
 
   cs2-server:
     image: cm2network/cs2:latest
@@ -29,10 +31,12 @@ services:
       - CS2_MAXROUNDS=1
       - CS2_WARMUP=1
       - CS2_WARMUP_DURATION=3600
-      - CS2_RCON_PW=farm${RANDOM:-1234}
+      - CS2_RCON_PW=farm1337
       - CS2_PORT=27015
       - CS2_LAN=0
       - TV_PORT=27020
+    profiles:
+      - server
 
 volumes:
   cs2-data:

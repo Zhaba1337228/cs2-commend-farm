@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
@@ -8,269 +7,124 @@ namespace CommendFarm;
 public class Cs2ServerManager
 {
     private readonly ILogger<Cs2ServerManager> _logger;
-    private Process? _serverProcess;
-    private readonly string _serverDir;
     private string _lastMatchId = "";
     private bool _matchLive;
     private string _status = "not_installed";
     private string _lastError = "";
-    private string _installProgress = "";
     private int _serverPort;
 
-    public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
+    public bool IsRunning => CheckContainerRunning();
     public string LastMatchId => _lastMatchId;
-    public bool IsInstalled => File.Exists(Path.Combine(_serverDir, "game", "game", "bin", "linuxsteamrt64", "cs2"));
+    public bool IsInstalled => true; // cm2network/cs2 image is pre-built
 
     public Cs2ServerManager(ILogger<Cs2ServerManager> logger, string? baseDir = null)
     {
         _logger = logger;
-        _serverDir = baseDir ?? Path.Combine(".", "cs2-server");
     }
 
-    public async Task<bool> InstallAsync(CancellationToken ct = default)
+    private bool CheckContainerRunning()
     {
-        if (IsInstalled)
+        try
         {
-            _logger.LogInformation("CS2 server already installed");
-            _status = "installed";
-            return true;
-        }
-
-        _status = "installing";
-        _logger.LogInformation("Installing CS2 dedicated server...");
-
-        Directory.CreateDirectory(_serverDir);
-
-        var steamcmdDir = Path.Combine(_serverDir, "steamcmd");
-        Directory.CreateDirectory(steamcmdDir);
-
-        // Download SteamCMD
-        var psi = new ProcessStartInfo
-        {
-            FileName = "bash",
-            Arguments = $"-c \"cd '{steamcmdDir}' && curl -sqL 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | tar zxvf -\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = Process.Start(psi)!;
-        await process.WaitForExitAsync(ct);
-
-        if (process.ExitCode != 0)
-        {
-            var err = await process.StandardError.ReadToEndAsync(ct);
-            _logger.LogError("Failed to download SteamCMD: {Error}", err);
-            _status = "install_failed";
-            _lastError = $"SteamCMD download failed: {err}";
-            return false;
-        }
-
-        // Install CS2 server (app 740 = CS2 dedicated server)
-        psi = new ProcessStartInfo
-        {
-            FileName = "bash",
-            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit +sys_wait_kill 10000 2>&1\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process2 = Process.Start(psi)!;
-        var sb = new System.Text.StringBuilder();
-
-        process2.OutputDataReceived += (_, e) =>
-        {
-            if (string.IsNullOrEmpty(e.Data)) return;
-            sb.AppendLine(e.Data);
-
-            // Track progress from SteamCMD output
-            if (e.Data.Contains("downloading", StringComparison.OrdinalIgnoreCase) ||
-                e.Data.Contains("update", StringComparison.OrdinalIgnoreCase) ||
-                e.Data.Contains("installing", StringComparison.OrdinalIgnoreCase))
+            var psi = new ProcessStartInfo
             {
-                _installProgress = e.Data.Trim();
-                if (_installProgress.Length > 80) _installProgress = _installProgress[..80];
-            }
-            else if (e.Data.Contains("Success", StringComparison.OrdinalIgnoreCase) ||
-                     e.Data.Contains("installed", StringComparison.OrdinalIgnoreCase))
-            {
-                _installProgress = "Installed successfully";
-            }
-        };
-        process2.BeginOutputReadLine();
-        process2.BeginErrorReadLine();
-
-        await process2.WaitForExitAsync(ct);
-
-        var output = sb.ToString();
-        await File.WriteAllTextAsync(Path.Combine(_serverDir, "install.log"), output, ct);
-
-        if (process2.ExitCode != 0)
-        {
-            _logger.LogError("CS2 server install failed (exit {Code})", process2.ExitCode);
-            _status = "install_failed";
-            _installProgress = "";
-
-            var lastError = output.Split('\n')
-                .Where(l => l.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
-                            l.Contains("failed", StringComparison.OrdinalIgnoreCase))
-                .LastOrDefault() ?? $"app_update 740 failed (exit {process2.ExitCode})";
-            _lastError = lastError.Trim();
-            return false;
-        }
-
-        // Create server config
-        var cfgDir = Path.Combine(_serverDir, "game", "game", "csgo", "cfg");
-        Directory.CreateDirectory(cfgDir);
-        await File.WriteAllTextAsync(Path.Combine(cfgDir, "server.cfg"), ServerCfg, ct);
-
-        _status = "installed";
-        _logger.LogInformation("CS2 server installed successfully");
-        return true;
-    }
-
-    public Task StartAsync(int port = 27015, string map = "de_dust2", string? rconPassword = null, CancellationToken ct = default)
-    {
-        if (IsRunning)
-        {
-            _logger.LogWarning("Server already running");
-            return Task.CompletedTask;
-        }
-
-        if (!IsInstalled)
-        {
-            _logger.LogError("CS2 server not installed");
-            _status = "not_installed";
-            return Task.CompletedTask;
-        }
-
-        var rcon = rconPassword ?? "farm" + Random.Shared.Next(1000, 9999);
-        var gameDir = Path.Combine(_serverDir, "game");
-        var gameExe = Path.Combine(gameDir, "game", "bin", "linuxsteamrt64", "cs2");
-
-        if (!File.Exists(gameExe))
-        {
-            _logger.LogError("CS2 server executable not found at {Path}", gameExe);
-            _status = "not_installed";
-            _lastError = $"Executable not found: {gameExe}";
-            return Task.CompletedTask;
-        }
-
-        _status = "starting";
-        _serverPort = port;
-        _lastError = "";
-        _logger.LogInformation("Starting CS2 server on port {Port}...", port);
-
-        _serverProcess = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = gameExe,
-                Arguments = string.Join(" ", new[]
-                {
-                    "-dedicated",
-                    "-console",
-                    "-usercon",
-                    $"+game_type 0",
-                    $"+game_mode 0",
-                    $"+mapgroup mg_active",
-                    $"+map {map}",
-                    "-maxplayers 32",
-                    $"-port {port}",
-                    "-tickrate 64",
-                    "+sv_lan 0",
-                    $"-rcon_password {rcon}",
-                    "+sv_cheats 0",
-                    "+mp_maxrounds 1",
-                    "+mp_roundtime 1",
-                    "+mp_warmup_pausetimer 1",
-                    "+mp_warmuptime 3600",
-                }),
-                WorkingDirectory = gameDir,
+                FileName = "docker",
+                Arguments = "inspect -f '{{.State.Running}}' cs2-server 2>/dev/null",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            },
-            EnableRaisingEvents = true,
-        };
+            };
+            using var p = Process.Start(psi)!;
+            var output = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit(5000);
+            return output == "true";
+        }
+        catch { return false; }
+    }
 
-        _serverProcess.OutputDataReceived += (_, e) =>
+    public Task<bool> InstallAsync(CancellationToken ct = default)
+    {
+        // cm2network/cs2 is pulled by docker compose, no separate install needed
+        _status = "installed";
+        _logger.LogInformation("CS2 server uses cm2network/cs2 Docker image (auto-pulled)");
+        return Task.FromResult(true);
+    }
+
+    public Task StartAsync(int port = 27015, string map = "de_dust2", string? rconPassword = null, CancellationToken ct = default)
+    {
+        _serverPort = port;
+
+        if (IsRunning)
         {
-            if (string.IsNullOrEmpty(e.Data)) return;
+            _logger.LogWarning("CS2 server container already running");
+            return Task.CompletedTask;
+        }
 
-            // Detect when server is fully started
-            if (e.Data.Contains("Connection to Steam servers successful") ||
-                e.Data.Contains("VAC secure mode is activated") ||
-                e.Data.Contains("Server is running"))
-            {
-                _status = "running";
-                _logger.LogInformation("CS2 server is ready");
-            }
+        _status = "starting";
+        _logger.LogInformation("Starting CS2 server container on port {Port}...", port);
 
-            // Capture match_id from server logs
-            var matchMatch = Regex.Match(e.Data, @"match_id[=:]\s*(\d+)");
-            if (matchMatch.Success)
-            {
-                _lastMatchId = matchMatch.Groups[1].Value;
-                _matchLive = true;
-                _logger.LogInformation("Match ID captured: {MatchId}", _lastMatchId);
-            }
-
-            if (e.Data.Contains("Game Over") || e.Data.Contains("map change"))
-            {
-                _matchLive = false;
-                _logger.LogInformation("Match ended");
-            }
-
-            _logger.LogDebug("[CS2] {Line}", e.Data);
-        };
-
-        _serverProcess.ErrorDataReceived += (_, e) =>
+        try
         {
-            if (!string.IsNullOrEmpty(e.Data))
+            // Start just the cs2-server service
+            var psi = new ProcessStartInfo
             {
-                _lastError = e.Data;
-                _logger.LogWarning("[CS2 ERR] {Line}", e.Data);
+                FileName = "docker",
+                Arguments = "compose up -d cs2-server 2>&1",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var process = Process.Start(psi)!;
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(30000);
+
+            if (process.ExitCode != 0)
+            {
+                _status = "install_failed";
+                _lastError = output.Trim();
+                _logger.LogError("Failed to start CS2 container: {Error}", output);
+                return Task.CompletedTask;
             }
-        };
 
-        _serverProcess.Exited += (_, _) =>
+            _status = "running";
+            _logger.LogInformation("CS2 server container started");
+        }
+        catch (Exception ex)
         {
-            var code = _serverProcess?.ExitCode;
-            _logger.LogInformation("CS2 server stopped (exit code {Code})", code);
-            _serverProcess = null;
-            _matchLive = false;
-            _status = code == 0 ? "stopped" : "crashed";
-            if (code != 0) _lastError = $"Server crashed with exit code {code}";
-        };
-
-        _serverProcess.Start();
-        _serverProcess.BeginOutputReadLine();
-        _serverProcess.BeginErrorReadLine();
-
-        _logger.LogInformation("Server starting... RCON: {Rcon}", rcon);
+            _status = "install_failed";
+            _lastError = ex.Message;
+            _logger.LogError("Failed to start CS2 container: {Error}", ex.Message);
+        }
 
         return Task.CompletedTask;
     }
 
     public void Stop()
     {
-        if (_serverProcess != null && !_serverProcess.HasExited)
+        if (!IsRunning) return;
+
+        _logger.LogInformation("Stopping CS2 server container...");
+        try
         {
-            _logger.LogInformation("Stopping CS2 server...");
-            try
+            var psi = new ProcessStartInfo
             {
-                _serverProcess.Kill(entireProcessTree: true);
-            }
-            catch { }
-            _serverProcess = null;
-            _matchLive = false;
-            _status = "stopped";
+                FileName = "docker",
+                Arguments = "compose stop cs2-server 2>&1",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var p = Process.Start(psi)!;
+            p.WaitForExit(15000);
         }
+        catch { }
+
+        _status = "stopped";
+        _matchLive = false;
     }
 
     public ServerInfo GetInfo() => new()
@@ -283,28 +137,8 @@ public class Cs2ServerManager
         LastMatchId = _lastMatchId,
         MatchLive = _matchLive,
         LastError = _lastError,
-        InstallProgress = _installProgress,
-        InstallLog = File.Exists(Path.Combine(_serverDir, "install.log"))
-            ? File.ReadAllText(Path.Combine(_serverDir, "install.log"))
-            : null,
+        InstallProgress = "",
     };
-
-    private const string ServerCfg = @"
-// CS2 Commend Farm Server
-hostname ""Commend Farm""
-sv_password """"
-sv_cheats 0
-mp_maxrounds 1
-mp_roundtime 1
-mp_warmup_pausetimer 1
-mp_warmuptime 3600
-mp_autoteambalance 0
-mp_limitteams 0
-bot_quota 0
-sv_hibernate_when_empty 0
-sv_allow_votes 0
-mp_endmatch_votenextmap 0
-";
 }
 
 public class ServerInfo
@@ -316,7 +150,7 @@ public class ServerInfo
     public int Port { get; set; }
     public string LastMatchId { get; set; } = "";
     public bool MatchLive { get; set; }
-    public string LastError { get; set; } = "";
+    public string LastError { get; set; } = ""
     public string InstallProgress { get; set; } = "";
     public string? InstallLog { get; set; }
 }
