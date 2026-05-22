@@ -42,8 +42,8 @@
   "hotPaths": [
     {
       "path": "src\\CommendFarm\\CommendBot.cs",
-      "accessCount": 24,
-      "lastAccessed": 1779484281857,
+      "accessCount": 25,
+      "lastAccessed": 1779484877077,
       "type": "file"
     },
     {
@@ -80,6 +80,12 @@
       "path": "docker-compose.yml",
       "accessCount": 2,
       "lastAccessed": 1779480393591,
+      "type": "file"
+    },
+    {
+      "path": "src\\CommendFarm\\AccountChecker.cs",
+      "accessCount": 1,
+      "lastAccessed": 1779484952739,
       "type": "file"
     }
   ],

@@ -22,7 +22,8 @@ public class AccountChecker
             CheckedAt = DateTime.UtcNow
         };
 
-        var client = new SteamClient();
+        var client = new SteamClient(SteamConfiguration.Create(config =>
+            config.WithProtocolTypes(SteamKit2.ProtocolTypes.Tcp | SteamKit2.ProtocolTypes.WebSocket)));
         var manager = new CallbackManager(client);
         var user = client.GetHandler<SteamUser>()!;
 
