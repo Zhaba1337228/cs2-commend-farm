@@ -10,21 +10,8 @@ if [ "$1" = "--local" ] || [ "$1" = "-l" ]; then
     mkdir -p data
 
     if [ ! -f data/config.json ]; then
-        cat > data/config.json << 'CFG'
-{
-  "TargetSteamId64": "76561198123456789",
-  "CommendFriendly": true,
-  "CommendLeader": true,
-  "CommendTeacher": true,
-  "CooldownHours": 12,
-  "LoginDelayMs": 5000,
-  "BatchSize": 10,
-  "BatchDelayMs": 30000,
-  "MatchId": 8,
-  "AccountsFile": "accounts.txt"
-}
-CFG
-        echo "Created data/config.json — не забудь вписать свой SteamID64!"
+        echo '{}' > data/config.json
+        echo "Created empty config.json — настрой через веб-панель :5050"
     fi
 
     [ ! -f data/accounts.txt ] && touch data/accounts.txt
@@ -64,21 +51,8 @@ cd /opt/cs2-commend-farm
 mkdir -p data
 
 if [ ! -f data/config.json ]; then
-cat > data/config.json << 'CFG'
-{
-  "TargetSteamId64": "76561198123456789",
-  "CommendFriendly": true,
-  "CommendLeader": true,
-  "CommendTeacher": true,
-  "CooldownHours": 12,
-  "LoginDelayMs": 5000,
-  "BatchSize": 10,
-  "BatchDelayMs": 30000,
-  "MatchId": 8,
-  "AccountsFile": "accounts.txt"
-}
-CFG
-echo "Created data/config.json — не забудь вписать свой SteamID64!"
+echo '{}' > data/config.json
+echo "Created empty config.json — настрой через веб-панель :5050"
 fi
 
 [ ! -f data/accounts.txt ] && touch data/accounts.txt
