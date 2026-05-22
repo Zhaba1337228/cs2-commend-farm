@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
@@ -69,7 +70,7 @@ public class Cs2ServerManager
         psi = new ProcessStartInfo
         {
             FileName = "bash",
-            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1\"",
+            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1 | tee '{_serverDir}/install.log'\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -84,7 +85,15 @@ public class Cs2ServerManager
         {
             _logger.LogError("CS2 server install failed: {Output}", output);
             _status = "install_failed";
-            _lastError = $"app_update 740 failed (exit {process2.ExitCode})";
+
+            // Extract last meaningful error from output
+            var lastError = output.Split('\n')
+                .Where(l => l.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
+                            l.Contains("failed", StringComparison.OrdinalIgnoreCase))
+                .LastOrDefault() ?? $"app_update 740 failed (exit {process2.ExitCode})";
+            _lastError = lastError.Trim();
+
+            Log($"Install failed: {_lastError}");
             return false;
         }
 
@@ -249,6 +258,9 @@ public class Cs2ServerManager
         LastMatchId = _lastMatchId,
         MatchLive = _matchLive,
         LastError = _lastError,
+        InstallLog = File.Exists(Path.Combine(_serverDir, "install.log"))
+            ? File.ReadAllText(Path.Combine(_serverDir, "install.log"))
+            : null,
     };
 
     private const string ServerCfg = @"
@@ -279,4 +291,5 @@ public class ServerInfo
     public string LastMatchId { get; set; } = "";
     public bool MatchLive { get; set; }
     public string LastError { get; set; } = "";
+    public string? InstallLog { get; set; }
 }
