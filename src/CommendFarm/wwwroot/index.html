@@ -77,6 +77,7 @@ tr:hover{background:#1c2128}
     <button class="btn btn-green" onclick="startFarm()" id="btnStart">▶ Запустить</button>
     <button class="btn btn-red" onclick="stopFarm()" id="btnStop" style="display:none">■ Остановить</button>
     <button class="btn btn-blue" onclick="checkAll()">✓ Проверить все</button>
+    <button class="btn btn-gray" onclick="createSessions()">🔑 Сессии</button>
   </div>
 </div>
 
@@ -138,6 +139,7 @@ tr:hover{background:#1c2128}
           <div class="item"><div class="lbl">Статус</div><div class="val" id="srvStatus">—</div></div>
           <div class="item"><div class="lbl">Match ID</div><div class="val" id="srvMatchId">—</div></div>
           <div class="item"><div class="lbl">Connect</div><div class="val" id="srvConnect" style="font-size:12px">—</div></div>
+          <div class="item" id="srvErrorItem" style="display:none"><div class="lbl">Ошибка</div><div class="val" id="srvError" style="color:#f85149;font-size:12px">—</div></div>
         </div>
         <div style="font-size:12px;color:#8b949e">
           Сервер поднимается для получения реального match_id. Комменды с реальным match_id проходят надёжнее.
@@ -258,6 +260,9 @@ function renderServer(){
   document.getElementById('srvStatus').textContent=statusMap[srv.status]||srv.status;
   document.getElementById('srvMatchId').textContent=srv.lastMatchId||'—';
   document.getElementById('srvConnect').textContent=srv.connectCommand||'—';
+  const errEl=document.getElementById('srvErrorItem');
+  if(srv.lastError){errEl.style.display='';document.getElementById('srvError').textContent=srv.lastError}
+  else{errEl.style.display='none'}
   const running=srv.isRunning;
   const canStart=srv.isInstalled&&!running;
   document.getElementById('btnServerInstall').style.display=srv.isInstalled?'none':'';
@@ -302,6 +307,12 @@ async function checkAll(){
 
 async function startFarm(){await api('POST','/api/start');loadState();}
 async function stopFarm(){await api('POST','/api/stop');loadState();}
+async function createSessions(){
+  const r=await api('POST','/api/accounts/create-sessions');
+  if(r.error)alert(r.error);
+  else alert('Запущено для '+r.pending+' аккаунтов');
+  loadState();
+}
 
 async function serverInstall(){
   await api('POST','/api/server/install');

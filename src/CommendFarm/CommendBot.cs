@@ -111,6 +111,83 @@ public class CommendBot
         return BotResult.Success;
     }
 
+    public async Task<BotResult> LoginOnlyAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("[{User}] Login-only mode...", _account.Username);
+
+        _ = RunCallbackPumpAsync(ct);
+
+        _steamClient.Connect();
+
+        var loginResult = await LoginAsync(ct);
+
+        if (loginResult == BotResult.Success)
+        {
+            _logger.LogInformation("[{User}] Login-only succeeded, session saved", _account.Username);
+            await Task.Delay(1000, ct);
+        }
+        else
+        {
+            _logger.LogError("[{User}] Login-only failed: {Result}", _account.Username, loginResult);
+        }
+
+        _steamClient.Disconnect();
+        return loginResult;
+    }
+
+    private async Task<BotResult> FullRunAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("[{User}] Starting...", _account.Username);
+
+        _ = RunCallbackPumpAsync(ct);
+
+        _steamClient.Connect();
+
+        var loginResult = await LoginAsync(ct);
+
+        if (loginResult != BotResult.Success)
+        {
+            _logger.LogError("[{User}] Login failed: {Result}", _account.Username, loginResult);
+            _steamClient.Disconnect();
+            return loginResult;
+        }
+
+        _logger.LogInformation("[{User}] Logged in, connecting to CS2 GC...", _account.Username);
+
+        SendClientHello();
+
+        var gcTask = _gcWelcomeTcs.Task;
+        var gcTimeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
+        var gcCompleted = await Task.WhenAny(gcTask, gcTimeout);
+
+        if (gcCompleted == gcTimeout || !gcTask.IsCompleted || !gcTask.Result)
+        {
+            _logger.LogError("[{User}] GC welcome failed or timed out", _account.Username);
+            _steamClient.Disconnect();
+            return BotResult.GcTimeout;
+        }
+
+        _logger.LogInformation("[{User}] Sending commend...", _account.Username);
+        SendCommend();
+
+        var commendTask = _commendResultTcs.Task;
+        var commendTimeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
+        var commendCompleted = await Task.WhenAny(commendTask, commendTimeout);
+
+        if (commendCompleted == commendTimeout)
+        {
+            _logger.LogWarning("[{User}] Commend response timed out (may still have succeeded)", _account.Username);
+        }
+
+        _sessionStore.Update(_account.Username, d => d.LastCommendedAt = DateTime.UtcNow);
+        _logger.LogInformation("[{User}] Commend sent successfully!", _account.Username);
+
+        await Task.Delay(2000, ct);
+        _steamClient.Disconnect();
+
+        return BotResult.Success;
+    }
+
     private async Task<BotResult> LoginAsync(CancellationToken ct)
     {
         var session = _sessionStore.Get(_account.Username);

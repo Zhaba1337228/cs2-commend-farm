@@ -413,7 +413,7 @@ public static class WebApi
             Log($"Imported {added} accounts ({skipped} skipped)");
             if (added > 0) WakeUp();
 
-            // Auto-login imported accounts
+            // Auto-login imported accounts (login only, no commend)
             if (added > 0 && _config != null && _sessionStore != null)
             {
                 _ = Task.Run(async () =>
@@ -428,12 +428,12 @@ public static class WebApi
                             info.Status = "logging_in";
                             var botLogger = app.Services.GetRequiredService<ILogger<CommendBot>>();
                             var bot = new CommendBot(acc, _config, _sessionStore, botLogger);
-                            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
 
-                            var result = await bot.RunAsync(cts.Token);
+                            var result = await bot.LoginOnlyAsync(cts.Token);
 
                             info.HasSession = _sessionStore.Get(acc.Username)?.RefreshToken != null;
-                            info.Status = result == BotResult.Success ? "ok" :
+                            info.Status = result == BotResult.Success ? "ready" :
                                 result == BotResult.Banned ? "banned" :
                                 result == BotResult.GuardNeeded || result == BotResult.GuardFailed ? "guard" :
                                 "failed";
@@ -518,6 +518,64 @@ public static class WebApi
 
             SaveAccountsToFile();
             return Results.Json(new { status = "removed" });
+        });
+
+        app.MapPost("/api/accounts/create-sessions", async (AccountChecker _) =>
+        {
+            if (_config == null || _sessionStore == null)
+                return Results.Json(new { error = "Not initialized" });
+
+            var pending = _botAccounts.Where(a =>
+            {
+                var session = _sessionStore.Get(a.Username);
+                return session?.RefreshToken == null;
+            }).ToList();
+
+            if (pending.Count == 0)
+                return Results.Json(new { status = "no_pending", message = "All accounts have sessions" });
+
+            Log($"Creating sessions for {pending.Count} accounts...");
+
+            _ = Task.Run(async () =>
+            {
+                var ok = 0;
+                foreach (var acc in pending)
+                {
+                    try
+                    {
+                        if (!_accounts.TryGetValue(acc.Username, out var info)) continue;
+                        info.Status = "logging_in";
+
+                        var botLogger = app.Services.GetRequiredService<ILogger<CommendBot>>();
+                        var bot = new CommendBot(acc, _config, _sessionStore, botLogger);
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+
+                        var result = await bot.LoginOnlyAsync(cts.Token);
+
+                        info.HasSession = _sessionStore.Get(acc.Username)?.RefreshToken != null;
+                        info.Status = result == BotResult.Success ? "ready" :
+                            result == BotResult.Banned ? "banned" :
+                            result == BotResult.GuardNeeded || result == BotResult.GuardFailed ? "guard" :
+                            "failed";
+
+                        if (result == BotResult.Success) ok++;
+                        Log($"Session [{acc.Username}]: {result}");
+                    }
+                    catch (Exception ex)
+                    {
+                        if (_accounts.TryGetValue(acc.Username, out var info))
+                        {
+                            info.Status = "failed";
+                            info.LastError = ex.Message;
+                        }
+                        Log($"Session [{acc.Username}] error: {ex.Message}");
+                    }
+                    await Task.Delay(2000);
+                }
+                Log($"Sessions done: {ok}/{pending.Count} succeeded");
+            });
+
+            return Results.Json(new { status = "started", pending = pending.Count });
         });
 
         app.MapPost("/api/accounts/clear-sessions", () =>

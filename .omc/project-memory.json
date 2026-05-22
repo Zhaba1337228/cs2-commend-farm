@@ -42,20 +42,20 @@
   "hotPaths": [
     {
       "path": "src\\CommendFarm\\WebApi.cs",
-      "accessCount": 11,
-      "lastAccessed": 1779480752595,
+      "accessCount": 13,
+      "lastAccessed": 1779481170281,
       "type": "file"
     },
     {
       "path": "src\\CommendFarm\\Program.cs",
-      "accessCount": 7,
-      "lastAccessed": 1779480771527,
+      "accessCount": 11,
+      "lastAccessed": 1779482202220,
       "type": "file"
     },
     {
       "path": "src\\CommendFarm\\wwwroot\\index.html",
-      "accessCount": 3,
-      "lastAccessed": 1779480152075,
+      "accessCount": 8,
+      "lastAccessed": 1779482183056,
       "type": "file"
     },
     {
@@ -66,14 +66,20 @@
     },
     {
       "path": "src\\CommendFarm\\Cs2ServerManager.cs",
-      "accessCount": 2,
-      "lastAccessed": 1779480126650,
+      "accessCount": 3,
+      "lastAccessed": 1779481094349,
       "type": "file"
     },
     {
       "path": "docker-compose.yml",
       "accessCount": 2,
       "lastAccessed": 1779480393591,
+      "type": "file"
+    },
+    {
+      "path": "src\\CommendFarm\\CommendBot.cs",
+      "accessCount": 1,
+      "lastAccessed": 1779481135910,
       "type": "file"
     }
   ],

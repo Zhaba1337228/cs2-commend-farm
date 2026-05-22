@@ -3,6 +3,9 @@ using CommendFarm;
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("SteamKit2", LogLevel.Warning);
+builder.Logging.AddFilter("System.Net", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 builder.Services.AddSingleton<AccountChecker>();
 
 var app = builder.Build();

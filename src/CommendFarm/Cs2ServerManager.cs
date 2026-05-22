@@ -23,7 +23,7 @@ public class Cs2ServerManager
     public Cs2ServerManager(ILogger<Cs2ServerManager> logger, string? baseDir = null)
     {
         _logger = logger;
-        _serverDir = baseDir ?? "/opt/cs2-server";
+        _serverDir = baseDir ?? Path.Combine(".", "cs2-server");
     }
 
     public async Task<bool> InstallAsync(CancellationToken ct = default)
