@@ -41,9 +41,27 @@
   },
   "hotPaths": [
     {
+      "path": "src\\CommendFarm\\WebApi.cs",
+      "accessCount": 3,
+      "lastAccessed": 1779479967395,
+      "type": "file"
+    },
+    {
+      "path": "src\\CommendFarm\\wwwroot\\index.html",
+      "accessCount": 3,
+      "lastAccessed": 1779480152075,
+      "type": "file"
+    },
+    {
       "path": "src\\CommendFarm\\Program.cs",
       "accessCount": 2,
       "lastAccessed": 1779479728707,
+      "type": "file"
+    },
+    {
+      "path": "src\\CommendFarm\\Cs2ServerManager.cs",
+      "accessCount": 2,
+      "lastAccessed": 1779480126650,
       "type": "file"
     }
   ],

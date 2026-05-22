@@ -11,11 +11,14 @@ public class Cs2ServerManager
     private readonly string _serverDir;
     private string _lastMatchId = "";
     private bool _matchLive;
+    private string _status = "not_installed";
+    private string _lastError = "";
+    private int _serverPort;
+    private bool _installRequested;
 
     public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
     public string LastMatchId => _lastMatchId;
-    public string ConnectCommand { get; private set; } = "";
-    public string ServerStatus => IsRunning ? "running" : "stopped";
+    public bool IsInstalled => Directory.Exists(Path.Combine(_serverDir, "game", "game", "bin", "linuxsteamrt64"));
 
     public Cs2ServerManager(ILogger<Cs2ServerManager> logger, string? baseDir = null)
     {
@@ -25,12 +28,15 @@ public class Cs2ServerManager
 
     public async Task<bool> InstallAsync(CancellationToken ct = default)
     {
-        if (Directory.Exists(Path.Combine(_serverDir, "game")))
+        if (IsInstalled)
         {
-            _logger.LogInformation("CS2 server already installed at {Dir}", _serverDir);
+            _logger.LogInformation("CS2 server already installed");
+            _status = "installed";
             return true;
         }
 
+        _status = "installing";
+        _installRequested = true;
         _logger.LogInformation("Installing CS2 dedicated server...");
 
         Directory.CreateDirectory(_serverDir);
@@ -55,6 +61,8 @@ public class Cs2ServerManager
         if (process.ExitCode != 0)
         {
             _logger.LogError("Failed to download SteamCMD");
+            _status = "install_failed";
+            _lastError = "SteamCMD download failed";
             return false;
         }
 
@@ -75,6 +83,8 @@ public class Cs2ServerManager
         if (process2.ExitCode != 0)
         {
             _logger.LogError("CS2 server install failed");
+            _status = "install_failed";
+            _lastError = "SteamCMD app_update failed";
             return false;
         }
 
@@ -83,6 +93,7 @@ public class Cs2ServerManager
         Directory.CreateDirectory(cfgDir);
         await File.WriteAllTextAsync(Path.Combine(cfgDir, "server.cfg"), ServerCfg, ct);
 
+        _status = "installed";
         _logger.LogInformation("CS2 server installed successfully");
         return true;
     }
@@ -95,6 +106,13 @@ public class Cs2ServerManager
             return Task.CompletedTask;
         }
 
+        if (!IsInstalled)
+        {
+            _logger.LogError("CS2 server not installed");
+            _status = "not_installed";
+            return Task.CompletedTask;
+        }
+
         var rcon = rconPassword ?? "farm" + Random.Shared.Next(1000, 9999);
         var gameDir = Path.Combine(_serverDir, "game");
         var gameExe = Path.Combine(gameDir, "game", "bin", "linuxsteamrt64", "cs2");
@@ -102,9 +120,14 @@ public class Cs2ServerManager
         if (!File.Exists(gameExe))
         {
             _logger.LogError("CS2 server executable not found at {Path}", gameExe);
+            _status = "not_installed";
+            _lastError = $"Executable not found: {gameExe}";
             return Task.CompletedTask;
         }
 
+        _status = "starting";
+        _serverPort = port;
+        _lastError = "";
         _logger.LogInformation("Starting CS2 server on port {Port}...", port);
 
         _serverProcess = new Process
@@ -145,6 +168,15 @@ public class Cs2ServerManager
         {
             if (string.IsNullOrEmpty(e.Data)) return;
 
+            // Detect when server is fully started
+            if (e.Data.Contains("Connection to Steam servers successful") ||
+                e.Data.Contains("VAC secure mode is activated") ||
+                e.Data.Contains("Server is running"))
+            {
+                _status = "running";
+                _logger.LogInformation("CS2 server is ready");
+            }
+
             // Capture match_id from server logs
             var matchMatch = Regex.Match(e.Data, @"match_id[=:]\s*(\d+)");
             if (matchMatch.Success)
@@ -163,19 +195,30 @@ public class Cs2ServerManager
             _logger.LogDebug("[CS2] {Line}", e.Data);
         };
 
+        _serverProcess.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+            {
+                _lastError = e.Data;
+                _logger.LogWarning("[CS2 ERR] {Line}", e.Data);
+            }
+        };
+
         _serverProcess.Exited += (_, _) =>
         {
-            _logger.LogInformation("CS2 server stopped (exit code {Code})", _serverProcess?.ExitCode);
+            var code = _serverProcess?.ExitCode;
+            _logger.LogInformation("CS2 server stopped (exit code {Code})", code);
             _serverProcess = null;
             _matchLive = false;
+            _status = code == 0 ? "stopped" : "crashed";
+            if (code != 0) _lastError = $"Server crashed with exit code {code}";
         };
 
         _serverProcess.Start();
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
 
-        ConnectCommand = $"connect {Environment.MachineName}:{port}";
-        _logger.LogInformation("Server started. RCON: {Rcon}. Connect: {Cmd}", rcon, ConnectCommand);
+        _logger.LogInformation("Server starting... RCON: {Rcon}", rcon);
 
         return Task.CompletedTask;
     }
@@ -192,15 +235,20 @@ public class Cs2ServerManager
             catch { }
             _serverProcess = null;
             _matchLive = false;
+            _status = "stopped";
         }
     }
 
     public ServerInfo GetInfo() => new()
     {
         IsRunning = IsRunning,
-        ConnectCommand = ConnectCommand,
+        IsInstalled = IsInstalled,
+        Status = _status,
+        ConnectCommand = _serverPort > 0 ? $"connect <IP>:{_serverPort}" : "",
+        Port = _serverPort,
         LastMatchId = _lastMatchId,
         MatchLive = _matchLive,
+        LastError = _lastError,
     };
 
     private const string ServerCfg = @"
@@ -224,7 +272,11 @@ mp_endmatch_votenextmap 0
 public class ServerInfo
 {
     public bool IsRunning { get; set; }
+    public bool IsInstalled { get; set; }
+    public string Status { get; set; } = "not_installed";
     public string ConnectCommand { get; set; } = "";
+    public int Port { get; set; }
     public string LastMatchId { get; set; } = "";
     public bool MatchLive { get; set; }
+    public string LastError { get; set; } = "";
 }

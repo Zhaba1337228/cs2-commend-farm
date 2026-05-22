@@ -105,6 +105,14 @@ tr:hover{background:#1c2128}
           <button class="btn btn-green" onclick="addAccount()">+</button>
         </div>
         <div style="font-size:11px;color:#8b949e;margin-bottom:8px">Почта notletters.com нужна для авто-ввода Steam Guard</div>
+        <details style="margin-bottom:10px">
+          <summary style="cursor:pointer;font-size:12px;color:#58a6ff">Массовый импорт</summary>
+          <div style="margin-top:8px">
+            <textarea id="importData" class="input" rows="8" placeholder="login:password:email:emailPassword&#10;login:password:email:emailPassword&#10;..." style="resize:vertical;font-size:12px"></textarea>
+            <button class="btn btn-blue btn-sm mt-8" onclick="importAccounts()">Импортировать</button>
+            <span id="importResult" style="font-size:12px;color:#8b949e;margin-left:8px"></span>
+          </div>
+        </details>
         <table>
           <thead>
             <tr><th>Логин</th><th>Статус</th><th>Почта</th><th>Сессия</th><th>Проверка</th><th>Комменд</th><th></th></tr>
@@ -241,12 +249,30 @@ function renderAccounts(){
 
 function renderServer(){
   const srv=state.server;
-  const running=srv?.isRunning;
-  document.getElementById('srvStatus').textContent=running?'🟢 Работает':'⬛ Остановлен';
-  document.getElementById('srvMatchId').textContent=srv?.lastMatchId||'—';
-  document.getElementById('srvConnect').textContent=srv?.connectCommand||'—';
-  document.getElementById('btnServerStart').style.display=running?'none':'';
+  if(!srv){document.getElementById('srvStatus').textContent='Не инициализирован';return;}
+  const statusMap={
+    'not_installed':'⬛ Не установлен','installing':'🔄 Установка...','install_failed':'❌ Ошибка установки',
+    'installed':'⬛ Установлен (остановлен)','starting':'🔄 Запуск...','running':'🟢 Работает',
+    'stopped':'⬛ Остановлен','crashed':'🔴 Упал'
+  };
+  document.getElementById('srvStatus').textContent=statusMap[srv.status]||srv.status;
+  document.getElementById('srvMatchId').textContent=srv.lastMatchId||'—';
+  document.getElementById('srvConnect').textContent=srv.connectCommand||'—';
+  const running=srv.isRunning;
+  const canStart=srv.isInstalled&&!running;
+  document.getElementById('btnServerInstall').style.display=srv.isInstalled?'none':'';
+  document.getElementById('btnServerStart').style.display=canStart?'':'none';
   document.getElementById('btnServerStop').style.display=running?'':'none';
+}
+
+async function importAccounts(){
+  const data=document.getElementById('importData').value.trim();
+  if(!data)return alert('Вставьте данные');
+  const r=await api('POST','/api/accounts/import',{lines:data});
+  const el=document.getElementById('importResult');
+  if(r.error){el.textContent=r.error;el.style.color='#f85149'}
+  else{el.textContent=`Добавлено: ${r.added}, Пропущено: ${r.skipped}`;el.style.color='#3fb950';document.getElementById('importData').value=''}
+  loadState();
 }
 
 async function addAccount(){

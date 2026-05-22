@@ -351,6 +351,57 @@ public static class WebApi
         app.MapGet("/api/logs", () => Results.Json(_recentLogs.ToArray()));
 
         // Account management
+        app.MapPost("/api/accounts/import", (ImportAccountsRequest req) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Lines))
+                return Results.Json(new { error = "No data provided" });
+
+            var lines = req.Lines.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var added = 0;
+            var skipped = 0;
+
+            foreach (var raw in lines)
+            {
+                var line = raw.Trim();
+                if (string.IsNullOrEmpty(line)) continue;
+
+                var parts = line.Split(':');
+                if (parts.Length < 2) { skipped++; continue; }
+
+                var username = parts[0].Trim();
+                var password = parts[1].Trim();
+                var email = parts.Length >= 3 ? parts[2].Trim() : null;
+                var emailPass = parts.Length >= 4 ? parts[3].Trim() : null;
+
+                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password)) { skipped++; continue; }
+                if (_accounts.ContainsKey(username)) { skipped++; continue; }
+
+                var acc = new BotAccount(username, password, email, emailPass);
+                _botAccounts.Add(acc);
+
+                var session = _sessionStore?.Get(username);
+                var info = new AccountInfo
+                {
+                    Username = username,
+                    Password = password,
+                    Email = email,
+                    EmailPassword = emailPass,
+                    Status = "ready",
+                    HasEmail = acc.HasEmail,
+                    HasSession = session?.RefreshToken != null,
+                };
+
+                _accounts[username] = info;
+                _state.Accounts.Add(info);
+                added++;
+            }
+
+            _state.TotalAccounts = _state.Accounts.Count;
+            SaveAccountsToFile();
+            Log($"Imported {added} accounts ({skipped} skipped)");
+            return Results.Json(new { added, skipped });
+        });
+
         app.MapPost("/api/accounts/add", (AddAccountRequest req) =>
         {
             if (string.IsNullOrEmpty(req.Username) || string.IsNullOrEmpty(req.Password))
@@ -466,6 +517,8 @@ public static class WebApi
 public record CheckRequest(string Username, string Password);
 
 public record AddAccountRequest(string Username, string Password, string? Email = null, string? EmailPassword = null);
+
+public record ImportAccountsRequest(string Lines);
 
 public record RemoveAccountRequest(string Username, bool ClearSession = false);
 
