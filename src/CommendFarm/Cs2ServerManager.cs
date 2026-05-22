@@ -92,8 +92,6 @@ public class Cs2ServerManager
                             l.Contains("failed", StringComparison.OrdinalIgnoreCase))
                 .LastOrDefault() ?? $"app_update 740 failed (exit {process2.ExitCode})";
             _lastError = lastError.Trim();
-
-            Log($"Install failed: {_lastError}");
             return false;
         }
 
