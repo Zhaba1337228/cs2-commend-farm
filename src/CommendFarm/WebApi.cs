@@ -539,12 +539,14 @@ public static class WebApi
             _ = Task.Run(async () =>
             {
                 var ok = 0;
+                var fail = 0;
                 foreach (var acc in pending)
                 {
+                    if (!_accounts.TryGetValue(acc.Username, out var info)) continue;
                     try
                     {
-                        if (!_accounts.TryGetValue(acc.Username, out var info)) continue;
                         info.Status = "logging_in";
+                        info.LastError = null;
 
                         var botLogger = app.Services.GetRequiredService<ILogger<CommendBot>>();
                         var bot = new CommendBot(acc, _config, _sessionStore, botLogger);
@@ -558,21 +560,40 @@ public static class WebApi
                             result == BotResult.GuardNeeded || result == BotResult.GuardFailed ? "guard" :
                             "failed";
 
-                        if (result == BotResult.Success) ok++;
-                        Log($"Session [{acc.Username}]: {result}");
+                        if (result == BotResult.Success)
+                        {
+                            ok++;
+                            Log($"Session [{acc.Username}] OK");
+                        }
+                        else
+                        {
+                            fail++;
+                            var reason = result == BotResult.Banned ? "account banned/disabled" :
+                                result == BotResult.GuardNeeded ? "Steam Guard required, no email configured" :
+                                result == BotResult.GuardFailed ? "Steam Guard code failed" :
+                                result == BotResult.LoginFailed ? "invalid credentials or connection error" :
+                                result.ToString();
+                            info.LastError = reason;
+                            Log($"Session [{acc.Username}] FAIL: {reason}");
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        fail++;
+                        info.Status = "failed";
+                        info.LastError = "Timeout (90s)";
+                        Log($"Session [{acc.Username}] TIMEOUT");
                     }
                     catch (Exception ex)
                     {
-                        if (_accounts.TryGetValue(acc.Username, out var info))
-                        {
-                            info.Status = "failed";
-                            info.LastError = ex.Message;
-                        }
-                        Log($"Session [{acc.Username}] error: {ex.Message}");
+                        fail++;
+                        info.Status = "failed";
+                        info.LastError = ex.Message;
+                        Log($"Session [{acc.Username}] ERROR: {ex.Message}");
                     }
                     await Task.Delay(2000);
                 }
-                Log($"Sessions done: {ok}/{pending.Count} succeeded");
+                Log($"Sessions done: {ok} OK, {fail} FAIL out of {pending.Count}");
             });
 
             return Results.Json(new { status = "started", pending = pending.Count });

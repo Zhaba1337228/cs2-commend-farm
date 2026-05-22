@@ -23,6 +23,7 @@ public class CommendBot
     private TaskCompletionSource<BotResult> _loginTcs = new();
     private readonly TaskCompletionSource<bool> _gcWelcomeTcs = new();
     private readonly TaskCompletionSource<bool> _commendResultTcs = new();
+    private readonly TaskCompletionSource<bool> _connectedTcs = new();
 
     private const uint CS2_APP_ID = 730;
 
@@ -58,6 +59,14 @@ public class CommendBot
         _callbackManager.Subscribe<SteamGameCoordinator.MessageCallback>(OnGcMessage);
     }
 
+    private async Task<bool> WaitForConnectAsync(CancellationToken ct)
+    {
+        if (_connectedTcs.Task.IsCompleted) return true;
+        var timeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
+        var completed = await Task.WhenAny(_connectedTcs.Task, timeout);
+        return completed == _connectedTcs.Task && _connectedTcs.Task.Result;
+    }
+
     public async Task<BotResult> RunAsync(CancellationToken ct)
     {
         _logger.LogInformation("[{User}] Starting...", _account.Username);
@@ -65,6 +74,12 @@ public class CommendBot
         _ = RunCallbackPumpAsync(ct);
 
         _steamClient.Connect();
+
+        if (!await WaitForConnectAsync(ct))
+        {
+            _logger.LogError("[{User}] Connection to Steam failed", _account.Username);
+            return BotResult.LoginFailed;
+        }
 
         var loginResult = await LoginAsync(ct);
 
@@ -118,6 +133,12 @@ public class CommendBot
         _ = RunCallbackPumpAsync(ct);
 
         _steamClient.Connect();
+
+        if (!await WaitForConnectAsync(ct))
+        {
+            _logger.LogError("[{User}] Connection to Steam failed", _account.Username);
+            return BotResult.LoginFailed;
+        }
 
         var loginResult = await LoginAsync(ct);
 
@@ -214,10 +235,13 @@ public class CommendBot
             // Reconnect for fresh attempt
             _steamClient.Disconnect();
             await Task.Delay(3000, ct);
+            _connectedTcs = new TaskCompletionSource<bool>();
             _steamClient.Connect();
 
-            var connectTimeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
-            await Task.WhenAny(_loginTcs.Task, connectTimeout);
+            if (!await WaitForConnectAsync(ct))
+            {
+                return BotResult.LoginFailed;
+            }
         }
 
         // Credentials-based auth via SteamKit2 v3 authentication API
@@ -338,7 +362,7 @@ public class CommendBot
     private void OnConnected(SteamClient.ConnectedCallback cb)
     {
         _logger.LogDebug("[{User}] Connected to Steam", _account.Username);
-        // Login is handled by LoginAsync — do NOT auto-logon here
+        _connectedTcs.TrySetResult(true);
     }
 
     private void OnDisconnected(SteamClient.DisconnectedCallback cb)

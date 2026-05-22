@@ -242,7 +242,7 @@ function renderAccounts(){
       <td><span class="badge badge-${a.status}">${a.status.toUpperCase()}</span></td>
       <td>${a.hasEmail?'✓':'✗'}</td>
       <td>${a.hasSession?'🔑':'✗'}</td>
-      <td style="font-size:11px;color:#8b949e">${a.checkResult||'—'}</td>
+      <td style="font-size:11px;color:#8b949e">${a.checkResult||a.lastError||'—'}</td>
       <td style="font-size:12px">${fmtTime(a.lastUsed)}</td>
       <td><button class="btn btn-red btn-sm" onclick="removeAccount('${esc(a.username)}')">✕</button></td>
     </tr>
