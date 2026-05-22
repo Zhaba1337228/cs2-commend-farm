@@ -3,6 +3,7 @@ using CommendFarm;
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Services.AddSingleton<AccountChecker>();
 
 var app = builder.Build();
 

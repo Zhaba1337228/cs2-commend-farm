@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1779479636494,
+  "projectRoot": "D:\\testing_devi\\cs2-commend-farm",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1779479636470,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\CommendFarm\\Program.cs",
+      "accessCount": 2,
+      "lastAccessed": 1779479728707,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
