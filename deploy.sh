@@ -1,18 +1,16 @@
 #!/bin/bash
-# Автодеплой CS2 Commend Farm на сервер
-# Запуск: ./deploy.sh user@host
-# Или: ./deploy.sh (использует FARM_SERVER из env)
-
 set -e
 
-if [ "$1" = "--local" ] || [ "$1" = "-l" ] || [ -z "$1" ] && [ -z "$FARM_SERVER" ]; then
-    # Локальный деплой — уже на сервере
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Локальный деплой — уже на сервере
+if [ "$1" = "--local" ] || [ "$1" = "-l" ]; then
     echo "=== Local deploy ==="
-    cd "$(dirname "$0")"
+    cd "$SCRIPT_DIR"
     mkdir -p data
 
     if [ ! -f data/config.json ]; then
-    cat > data/config.json << 'CFG'
+        cat > data/config.json << 'CFG'
 {
   "TargetSteamId64": "76561198123456789",
   "CommendFriendly": true,
@@ -26,7 +24,7 @@ if [ "$1" = "--local" ] || [ "$1" = "-l" ] || [ -z "$1" ] && [ -z "$FARM_SERVER"
   "AccountsFile": "accounts.txt"
 }
 CFG
-    echo "Created data/config.json — не забудь вписать свой SteamID64!"
+        echo "Created data/config.json — не забудь вписать свой SteamID64!"
     fi
 
     [ ! -f data/accounts.txt ] && touch data/accounts.txt
@@ -39,14 +37,13 @@ CFG
     exit 0
 fi
 
+# Удалённый деплой — с локальной машины на сервер
 SERVER="${1:-$FARM_SERVER}"
 if [ -z "$SERVER" ]; then
     echo "Usage: ./deploy.sh --local     # на этом сервере"
     echo "       ./deploy.sh user@host   # удалённо через ssh"
     exit 1
 fi
-
-REMOTE_DIR="/opt/cs2-commend-farm"
 
 echo "=== Deploying to $SERVER ==="
 
@@ -58,16 +55,14 @@ rsync -az --delete \
     --exclude='data/' \
     --exclude='.git/' \
     --exclude='*.md' \
-    ./ "$SERVER:$REMOTE_DIR/"
+    "$SCRIPT_DIR/" "$SERVER:/opt/cs2-commend-farm/"
 
 echo "[2/3] Building & starting..."
 ssh "$SERVER" bash -s << 'REMOTE'
 set -e
 cd /opt/cs2-commend-farm
-
 mkdir -p data
 
-# Дефолтный конфиг если нет
 if [ ! -f data/config.json ]; then
 cat > data/config.json << 'CFG'
 {
@@ -95,4 +90,4 @@ echo "=== Готово ==="
 echo "Панель: http://$(hostname -I | awk '{print $1}'):5050"
 REMOTE
 
-echo "[3/3] Done. Панель: http://<IP>:5050"
+echo "[3/3] Done."
