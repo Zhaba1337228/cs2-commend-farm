@@ -17,7 +17,7 @@ public class Cs2ServerManager
 
     public bool IsRunning => _serverProcess != null && !_serverProcess.HasExited;
     public string LastMatchId => _lastMatchId;
-    public bool IsInstalled => Directory.Exists(Path.Combine(_serverDir, "game", "game", "bin", "linuxsteamrt64"));
+    public bool IsInstalled => File.Exists(Path.Combine(_serverDir, "game", "game", "bin", "linuxsteamrt64", "cs2"));
 
     public Cs2ServerManager(ILogger<Cs2ServerManager> logger, string? baseDir = null)
     {
@@ -46,7 +46,7 @@ public class Cs2ServerManager
         var psi = new ProcessStartInfo
         {
             FileName = "bash",
-            Arguments = $"-c \"cd {steamcmdDir} && curl -sqL 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | tar zxvf -\"",
+            Arguments = $"-c \"cd '{steamcmdDir}' && curl -sqL 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | tar zxvf -\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -58,17 +58,18 @@ public class Cs2ServerManager
 
         if (process.ExitCode != 0)
         {
-            _logger.LogError("Failed to download SteamCMD");
+            var err = await process.StandardError.ReadToEndAsync(ct);
+            _logger.LogError("Failed to download SteamCMD: {Error}", err);
             _status = "install_failed";
-            _lastError = "SteamCMD download failed";
+            _lastError = $"SteamCMD download failed: {err}";
             return false;
         }
 
-        // Install CS2 server
+        // Install CS2 server (app 740 = CS2 dedicated server)
         psi = new ProcessStartInfo
         {
             FileName = "bash",
-            Arguments = $"-c \"cd {steamcmdDir} && ./steamcmd.sh +force_install_dir {_serverDir}/game +login anonymous +app_update 730 validate +quit\"",
+            Arguments = $"-c \"cd '{steamcmdDir}' && ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir '{_serverDir}/game' +login anonymous +app_update 740 validate +quit 2>&1\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -76,13 +77,14 @@ public class Cs2ServerManager
         };
 
         using var process2 = Process.Start(psi)!;
+        var output = await process2.StandardOutput.ReadToEndAsync(ct);
         await process2.WaitForExitAsync(ct);
 
         if (process2.ExitCode != 0)
         {
-            _logger.LogError("CS2 server install failed");
+            _logger.LogError("CS2 server install failed: {Output}", output);
             _status = "install_failed";
-            _lastError = "SteamCMD app_update failed";
+            _lastError = $"app_update 740 failed (exit {process2.ExitCode})";
             return false;
         }
 
