@@ -9,7 +9,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
 # SteamCMD + CS2 server dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN dpkg --add-architecture i386 \
+    && apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     lib32gcc-s1 \
@@ -17,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libstdc++6 \
     libgcc-s1 \
     libcurl4 \
-    libcurl4t64 \
     libsdl2-2.0-0 \
     locales \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
