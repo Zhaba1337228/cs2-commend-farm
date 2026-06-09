@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779479636494,
-  "projectRoot": "D:\\testing_devi\\cs2-commend-farm",
+  "lastScanned": 1781043023267,
+  "projectRoot": "D:\\cs2commend\\cs2-commend-farm",
   "techStack": {
     "languages": [],
     "frameworks": [],
@@ -27,7 +27,10 @@
     "mainDirectories": [
       "src"
     ],
-    "gitBranches": null
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
   },
   "customNotes": [],
   "directoryMap": {
@@ -35,7 +38,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 0,
-      "lastAccessed": 1779479636470,
+      "lastAccessed": 1781043023250,
       "keyFiles": []
     }
   },
@@ -71,15 +74,27 @@
       "type": "file"
     },
     {
-      "path": "docker-compose.yml",
-      "accessCount": 5,
-      "lastAccessed": 1779485668208,
+      "path": "Dockerfile",
+      "accessCount": 8,
+      "lastAccessed": 1781043267742,
       "type": "file"
     },
     {
-      "path": "Dockerfile",
-      "accessCount": 5,
-      "lastAccessed": 1779485696029,
+      "path": "docker-compose.yml",
+      "accessCount": 8,
+      "lastAccessed": 1781043268032,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 3,
+      "lastAccessed": 1781043226334,
+      "type": "directory"
+    },
+    {
+      "path": "deploy.sh",
+      "accessCount": 3,
+      "lastAccessed": 1781043258245,
       "type": "file"
     },
     {
@@ -95,9 +110,15 @@
       "type": "directory"
     },
     {
-      "path": "deploy.sh",
+      "path": "C:\\Users\\vasak\\AppData\\Local\\Temp\\claude\\D--cs2commend-cs2-commend-farm\\be88f7ab-e404-42ea-92c7-daa78a8c7193\\tasks\\bqy2mfa02.output",
       "accessCount": 1,
-      "lastAccessed": 1779485384160,
+      "lastAccessed": 1781043179813,
+      "type": "file"
+    },
+    {
+      "path": "src\\CommendFarm\\CommendFarm.csproj",
+      "accessCount": 1,
+      "lastAccessed": 1781043246898,
       "type": "file"
     }
   ],

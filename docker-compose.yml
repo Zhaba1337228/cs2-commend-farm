@@ -1,6 +1,8 @@
 services:
   farm:
-    image: mcr.microsoft.com/dotnet/aspnet:8.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: cs2-commend-farm
     restart: unless-stopped
     ports:
@@ -10,9 +12,3 @@ services:
     environment:
       - FARM_DATA_DIR=/app/data
       - ASPNETCORE_ENVIRONMENT=Production
-    # Build from local Dockerfile:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
-    # ОДИН артефакт — commend-farm.dll из src/CommendFarm/publish/
-    # Собери локально: cd src/CommendFarm && dotnet publish -c Release -o publish

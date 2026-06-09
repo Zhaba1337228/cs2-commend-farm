@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"tree \\\"D:\\\\cs2commend\\\\cs2-commend-farm\\\" -L 2 -A 2>&1 | head -50\",\"description\":\"Show directory tree to depth 2\"}",
+  "error": "Exit code 1\nhead : The term 'head' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the\r\n spelling of the name, or if a path was included, verify that the path is correct and try again.\r\nAt line:1 char:54\r\n+ tree \"D:\\cs2commend\\cs2-commend-farm\" -L 2 -A 2>&1 | head -50\r\n+                                                      ~~~~\r\n    + CategoryInfo          : ObjectNotFound: (head:String) [], CommandNotFoundException\r\n    + FullyQualifiedErrorId : Comm...",
+  "timestamp": "2026-06-09T22:13:54.179Z",
+  "retry_count": 1
+}
