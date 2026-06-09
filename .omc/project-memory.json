@@ -45,8 +45,8 @@
   "hotPaths": [
     {
       "path": "src\\CommendFarm\\CommendBot.cs",
-      "accessCount": 29,
-      "lastAccessed": 1781043827833,
+      "accessCount": 32,
+      "lastAccessed": 1781044917197,
       "type": "file"
     },
     {
@@ -111,8 +111,8 @@
     },
     {
       "path": "src\\CommendFarm\\Config.cs",
-      "accessCount": 2,
-      "lastAccessed": 1779485464805,
+      "accessCount": 3,
+      "lastAccessed": 1781044122672,
       "type": "directory"
     },
     {

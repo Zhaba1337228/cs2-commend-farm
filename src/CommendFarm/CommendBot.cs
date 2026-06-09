@@ -4,6 +4,7 @@ using SteamKit2;
 using SteamKit2.Authentication;
 using SteamKit2.GC;
 using SteamKit2.GC.CSGO.Internal;
+using SteamKit2.Internal;
 
 namespace CommendFarm;
 
@@ -103,8 +104,12 @@ public class CommendBot
             return loginResult;
         }
 
-        _logger.LogInformation("[{User}] Logged in, connecting to CS2 GC...", _account.Username);
+        _logger.LogInformation("[{User}] Logged in, setting playing CS2...", _account.Username);
 
+        SetPlayingCS2();
+        await Task.Delay(2000, ct);
+
+        _logger.LogInformation("[{User}] Connecting to CS2 GC...", _account.Username);
         SendClientHello();
 
         var gcTask = _gcWelcomeTcs.Task;
@@ -285,6 +290,16 @@ return loginResult;
             }
         }
         catch (OperationCanceledException) { }
+    }
+
+    private void SetPlayingCS2()
+    {
+        var playGame = new ClientMsgProtobuf<CMsgClientGamesPlayed>(EMsg.ClientGamesPlayed);
+        playGame.Body.games_played.Add(new CMsgClientGamesPlayed.GamePlayed
+        {
+            game_id = new GameID(CS2_APP_ID),
+        });
+        _steamClient.Send(playGame);
     }
 
     private void SendClientHello()
