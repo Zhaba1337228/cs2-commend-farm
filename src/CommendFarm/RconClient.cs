@@ -44,7 +44,7 @@ public class RconClient : IDisposable
 
             // Authenticate
             var authOk = await SendCommandAsync("auth " + Password, ct);
-            return authOk;
+            return authOk != null;
         }
         catch (Exception ex)
         {
@@ -123,7 +123,7 @@ public class RconClient : IDisposable
         var score = await SendCommandAsync("status", ct);
         if (!string.IsNullOrEmpty(score))
         {
-            info.ServerStatus = ParseServerStatus(score);
+            info.ServerInfo = ParseServerStatus(score);
             info.RawStatus = score;
         }
 
@@ -145,6 +145,14 @@ public class RconClient : IDisposable
     }
 
     /// <summary>Check if server is reachable and responding</summary>
+    public async Task<ServerCheckResult> CheckServerAsync(string host, int port, string password, CancellationToken ct = default)
+    {
+        Host = host;
+        Port = port;
+        Password = password;
+        return await CheckServerAsync(ct);
+    }
+
     public async Task<ServerCheckResult> CheckServerAsync(CancellationToken ct = default)
     {
         var result = new ServerCheckResult { Host = Host, Port = Port };
@@ -179,7 +187,7 @@ public class RconClient : IDisposable
         return result;
     }
 
-    private static byte[] BuildPacket(int type, string command)
+    private byte[] BuildPacket(int type, string command)
     {
         using var ms = new MemoryStream();
         var id = _packetId++;

@@ -49,7 +49,7 @@ public class AccountChecker
             {
                 tcs.TrySetResult(BotResult.Success);
             }
-            else if (cb.Result == EResult.AccountLogonDenied || cb.Result == EResult.AccountLoginDeniedNeedMPHA)
+            else if (cb.Result == EResult.AccountLogonDenied || cb.Result == EResult.AccountLoginDeniedNeedTwoFactor)
             {
                 // Guard needed — this is OK, account is valid
                 tcs.TrySetResult(BotResult.GuardNeeded);

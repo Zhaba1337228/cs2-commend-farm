@@ -3,3 +3,5 @@
 {"t":0,"agent":"ada8a10","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
 {"t":0,"agent":"ada8a10","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":38173}
 {"t":0,"agent":"a6a76ae","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a375c7e","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"adf2082","agent_type":"unknown","event":"agent_stop","success":true}
