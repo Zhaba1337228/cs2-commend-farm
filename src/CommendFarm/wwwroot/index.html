@@ -23,7 +23,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#c9d1d
 .btn-gray:hover{background:#30363d}
 .btn-sm{padding:4px 10px;font-size:11px}
 .container{max-width:1400px;margin:0 auto;padding:20px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr);gap:12px;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
 .stat-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px}
 .stat-card .label{font-size:11px;color:#8b949e;margin-bottom:2px}
 .stat-card .value{font-size:26px;font-weight:700}
@@ -59,7 +59,7 @@ tr.working td{color:#3fb950}
 .input:focus{outline:none;border-color:#58a6ff}
 .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .form-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr);gap:8px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
 .mt-8{margin-top:8px}
 .logs{max-height:350px;overflow-y:auto;font-family:'Consolas',monospace;font-size:12px;padding:12px;background:#0d1117;border-radius:4px}
 .logs div{padding:2px 0;border-bottom:1px solid #21262d;font-size:12px}
@@ -71,7 +71,7 @@ tr.working td{color:#3fb950}
 .log-info{color:#58a6ff}
 .operation-bar{display:flex;gap:8px;align-items:center;padding:8px 16px;background:#161b22;border-bottom:1px solid #30363d;font-size:12px}
 .operation-bar .spinner{display:inline-block;width:12px;height:12px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
 .logs-container{display:flex;flex-direction:column}
 .logs .log-time{flex-shrink:0;color:#484f58;font-size:11px;padding-right:8px}
 .success{color:#3fb950}
@@ -270,7 +270,7 @@ function updateUI(){
   document.getElementById('btnStop').style.display=state.isRunning?'':'none';
   document.getElementById('accCount').textContent=state.totalAccounts;
   const done=state.successCount+state.failCount;
-  const pct=Math.round((done/Math.max(state.totalAccounts,1)*100);
+  const pct=Math.round(done/Math.max(state.totalAccounts,1)*100);
   const ws=(state.accounts||[]).filter(a=>a.hasSession).length;
   const guard=(state.accounts||[]).filter(a=>a.status==='guard'||a.status==='logging_in').length;
   const banned=(state.accounts||[]).filter(a=>a.status==='banned').length;
@@ -282,7 +282,7 @@ function updateUI(){
     <div class="stat-card"><div class="label">Guard</div><div class="value yellow">${guard}</div></div>
     <div class="stat-card"><div class="label">Прогресс</div><div class="value">${pct}%
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-    </div>`;
+    </div></div>`;
   renderAccounts();
   // Config fields
   if(state.targetSteamId64&&!document.getElementById('cfgTargetId').value)document.getElementById('cfgTargetId').value=state.targetSteamId64;
@@ -301,7 +301,7 @@ function renderAccounts(){
     <td><span class="badge ${badges[a.status]||'badge-failed'}">${a.status.toUpperCase()}</span></td>
     <td>${a.hasEmail?'&#10003;':'✗'}</td>
     <td>${a.hasSession?'&#128273;':'✗'}</td>
-    <td style="font-size:11px;color:${a.checkResult==='OK'?'#3fb950':a.checkResult==='BANNED'?'#f85149':'#8b949e'">${esc(a.checkResult||a.lastError||'—')}</td>
+    <td style="font-size:11px;color:${a.checkResult==='OK'?'#3fb950':a.checkResult==='BANNED'?'#f85149':'#8b949e'}">${esc(a.checkResult||a.lastError||'—')}</td>
     <td style="font-size:12px">${fmtTime(a.lastUsed)}</td>
     <td><button class="btn btn-red btn-sm" onclick="removeAccount('${esc(a.username)}')">&#10005;</button></td>
   </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#8b949e;padding:20px">Нет аккаунтов. Добавь или импортируй.</td></tr>';
@@ -357,7 +357,7 @@ async function saveConfig(){
 }
 async function loadLogs(){const logs=await fetch('/api/logs').then(r=>r.json());localLogs=logs.map(l=>({msg:l,cls:l.includes(' OK')?'log-ok':l.includes('FAIL')||l.includes('ERROR')?'log-fail':l.includes('Guard')?'log-guard':l.includes('Batch')||l.includes('Farm')?'log-info':'log-info'}));renderLogs();}
 function showTab(tab){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   ['accounts','config','logs'].forEach(id=>document.getElementById('tab-'+id).style.display=id===tab?'':'none');
   if(tab==='logs')loadLogs();
 }
