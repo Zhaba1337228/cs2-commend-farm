@@ -107,18 +107,25 @@ public class CommendBot
         _logger.LogInformation("[{User}] Logged in, setting playing CS2...", _account.Username);
 
         SetPlayingCS2();
-        await Task.Delay(2000, ct);
+        await Task.Delay(3000, ct);
 
-        _logger.LogInformation("[{User}] Connecting to CS2 GC...", _account.Username);
-        SendClientHello();
+        _logger.LogInformation("[{User}] Connecting to CS2 GC (retry loop)...", _account.Username);
 
         var gcTask = _gcWelcomeTcs.Task;
-        var gcTimeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
-        var gcCompleted = await Task.WhenAny(gcTask, gcTimeout);
-
-        if (gcCompleted == gcTimeout || !gcTask.IsCompleted || !gcTask.Result)
+        var gcDeadline = DateTime.UtcNow.AddSeconds(90);
+        var helloCount = 0;
+        while (!gcTask.IsCompleted && DateTime.UtcNow < gcDeadline)
         {
-            _logger.LogError("[{User}] GC welcome failed or timed out", _account.Username);
+            helloCount++;
+            _logger.LogInformation("[{User}] GC hello #{N}...", _account.Username, helloCount);
+            SendClientHello();
+            var slice = await Task.WhenAny(gcTask, Task.Delay(TimeSpan.FromSeconds(5), ct));
+            if (slice == gcTask) break;
+        }
+
+        if (!gcTask.IsCompleted || !gcTask.Result)
+        {
+            _logger.LogError("[{User}] GC welcome failed after {N} hellos (90s)", _account.Username, helloCount);
             _steamClient.Disconnect();
             return BotResult.GcTimeout;
         }
@@ -382,7 +389,15 @@ return loginResult;
     private void OnGcMessage(SteamGameCoordinator.MessageCallback cb)
     {
         var msgType = MsgUtil.GetGCMsg(cb.EMsg);
-        _logger.LogDebug("[{User}] GC msg: {MsgType} ({Id})", _account.Username, msgType, cb.EMsg);
+        _logger.LogInformation("[{User}] GC msg: {MsgType} (raw EMsg={Id})", _account.Username, msgType, cb.EMsg);
+
+        // Generic GC welcome (4004) — GC is alive
+        if (msgType == 4004)
+        {
+            _logger.LogInformation("[{User}] GC alive (generic welcome)", _account.Username);
+            _gcWelcomeTcs.TrySetResult(true);
+            return;
+        }
 
         if (msgType == (uint)ECsgoGCMsg.k_EMsgGCCStrike15_v2_MatchmakingGC2ClientHello)
         {
