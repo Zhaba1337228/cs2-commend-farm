@@ -64,9 +64,20 @@ public class AccountChecker
             }
         });
 
+        using var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         try
         {
             client.Connect();
+
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    while (!pumpCts.IsCancellationRequested)
+                        manager.RunWaitCallbacks(TimeSpan.FromMilliseconds(100));
+                }
+                catch (OperationCanceledException) { }
+            }, pumpCts.Token);
 
             // Wait for connection - must complete successfully
             var connTimeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
@@ -169,6 +180,7 @@ public class AccountChecker
         finally
         {
             try { client.Disconnect(); } catch { }
+            try { pumpCts.Cancel(); } catch { }
         }
 
         return status;

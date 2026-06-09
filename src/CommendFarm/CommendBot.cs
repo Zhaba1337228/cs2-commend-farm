@@ -84,7 +84,7 @@ public class CommendBot
     {
         _logger.LogInformation("[{User}] Starting...", _account.Username);
 
-        _ = RunCallbackPumpAsync(ct);
+        _ = Task.Run(() => RunCallbackPumpAsync(ct), ct);
 
         _steamClient.Connect();
 
@@ -143,7 +143,7 @@ public class CommendBot
     {
         _logger.LogInformation("[{User}] Login-only mode...", _account.Username);
 
-        _ = RunCallbackPumpAsync(ct);
+        _ = Task.Run(() => RunCallbackPumpAsync(ct), ct);
 
         _steamClient.Connect();
 
@@ -275,7 +275,7 @@ return loginResult;
         return _loginTcs.Task.Result;
     }
 
-    private async Task RunCallbackPumpAsync(CancellationToken ct)
+    private void RunCallbackPumpAsync(CancellationToken ct)
     {
         try
         {
