@@ -209,13 +209,31 @@ public static class WebApi
             return Results.Json(_serverManager.GetInfo());
         });
 
-        // Account check
+        // Account check - now supports email for Steam Guard
         app.MapPost("/api/accounts/check", async (CheckRequest req, AccountChecker checker) =>
         {
             Log($"Checking {req.Username}...");
-            var result = await checker.CheckAsync(req.Username, req.Password);
-            UpdateCheckResult(req.Username, result);
-            return Results.Json(result);
+            try
+            {
+                var result = await checker.CheckAsync(req.Username, req.Password, req.Email, req.EmailPassword);
+                UpdateCheckResult(req.Username, result);
+                if (!string.IsNullOrEmpty(result.Error))
+                    Log($"Check [{req.Username}] result: {result.StatusText} - {result.Error}");
+                else
+                    Log($"Check [{req.Username}] result: {result.StatusText}");
+                return Results.Json(result);
+            }
+            catch (Exception ex)
+            {
+                Log($"Check [{req.Username}] EXCEPTION: {ex.Message}");
+                return Results.Json(new AccountStatus
+                {
+                    Username = req.Username,
+                    CanLogin = false,
+                    Error = ex.Message,
+                    CheckedAt = DateTime.UtcNow
+                });
+            }
         });
 
         app.MapPost("/api/accounts/check-all", async (AccountChecker checker) =>
@@ -228,10 +246,24 @@ public static class WebApi
             foreach (var acc in accounts)
             {
                 Log($"Checking {acc.Username}...");
-                var result = await checker.CheckAsync(acc.Username, acc.Password);
-                UpdateCheckResult(acc.Username, result);
-                results.Add(result);
-                await Task.Delay(1000);
+                try
+                {
+                    var result = await checker.CheckAsync(acc.Username, acc.Password, acc.Email, acc.EmailPassword);
+                    UpdateCheckResult(acc.Username, result);
+                    results.Add(result);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Check [{acc.Username}] EXCEPTION: {ex.Message}");
+                    results.Add(new AccountStatus
+                    {
+                        Username = acc.Username,
+                        CanLogin = false,
+                        Error = ex.Message,
+                        CheckedAt = DateTime.UtcNow
+                    });
+                }
+                await Task.Delay(2000); // Longer delay between accounts
             }
 
             Log($"Check done: {results.Count} accounts");
@@ -634,8 +666,10 @@ public static class WebApi
             if (req.MatchId.HasValue) _config.MatchId = req.MatchId.Value;
             _state.TargetSteamId64 = _config.TargetSteamId64;
 
-            var json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("config.json", json);
+            var configPath = Path.IsPathRooted(_config.AccountsFile)
+                ? Path.Combine(Path.GetDirectoryName(_config.AccountsFile) ?? ".", "config.json")
+                : Path.Combine(Path.GetDirectoryName(_accountsFilePath ?? "accounts.txt") ?? ".", "config.json");
+            _config.Save(configPath);
             Log($"Config updated");
             return Results.Json(new { status = "updated" });
         });
@@ -654,7 +688,7 @@ public static class WebApi
     }
 }
 
-public record CheckRequest(string Username, string Password);
+public record CheckRequest(string Username, string Password, string? Email = null, string? EmailPassword = null);
 
 public record AddAccountRequest(string Username, string Password, string? Email = null, string? EmailPassword = null);
 

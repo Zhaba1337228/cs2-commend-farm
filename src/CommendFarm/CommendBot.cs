@@ -62,21 +62,22 @@ public class CommendBot
         _callbackManager.Subscribe<SteamGameCoordinator.MessageCallback>(OnGcMessage);
     }
 
-    private async Task<bool> WaitForConnectAsync(CancellationToken ct)
+    private async Task<bool> WaitForConnectAsync(CancellationToken ct, int timeoutSec = 30)
     {
-        if (_connectedTcs.Task.IsCompleted) return true;
-        _logger.LogWarning("[{User}] Waiting for Steam connection...", _account.Username);
-        var timeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
+        var timeout = Task.Delay(TimeSpan.FromSeconds(timeoutSec), ct);
         var completed = await Task.WhenAny(_connectedTcs.Task, timeout);
 
-        if (completed != _connectedTcs.Task || !_connectedTcs.Task.IsCompleted)
+        // If completed == _connectedTcs.Task AND it completed successfully → OK
+        if (completed == _connectedTcs.Task && _connectedTcs.Task.IsCompletedSuccessfully)
         {
-            LastError = "Cannot connect to Steam servers (timeout 30s). Check network/firewall.";
-            _logger.LogError("[{User}] {Error}", _account.Username, LastError);
-            return false;
+            _logger.LogDebug("[{User}] Connected to Steam", _account.Username);
+            return true;
         }
-        _logger.LogWarning("[{User}] Steam connected!", _account.Username);
-        return true;
+
+        // Timeout or failed
+        LastError = $"Cannot connect to Steam (timeout {timeoutSec}s)";
+        _logger.LogError("[{User}] {Error}", _account.Username, LastError);
+        return false;
     }
 
     public async Task<BotResult> RunAsync(CancellationToken ct)
@@ -165,60 +166,7 @@ public class CommendBot
         }
 
         _steamClient.Disconnect();
-        return loginResult;
-    }
-
-    private async Task<BotResult> FullRunAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("[{User}] Starting...", _account.Username);
-
-        _ = RunCallbackPumpAsync(ct);
-
-        _steamClient.Connect();
-
-        var loginResult = await LoginAsync(ct);
-
-        if (loginResult != BotResult.Success)
-        {
-            _logger.LogError("[{User}] Login failed: {Result}", _account.Username, loginResult);
-            _steamClient.Disconnect();
-            return loginResult;
-        }
-
-        _logger.LogInformation("[{User}] Logged in, connecting to CS2 GC...", _account.Username);
-
-        SendClientHello();
-
-        var gcTask = _gcWelcomeTcs.Task;
-        var gcTimeout = Task.Delay(TimeSpan.FromSeconds(30), ct);
-        var gcCompleted = await Task.WhenAny(gcTask, gcTimeout);
-
-        if (gcCompleted == gcTimeout || !gcTask.IsCompleted || !gcTask.Result)
-        {
-            _logger.LogError("[{User}] GC welcome failed or timed out", _account.Username);
-            _steamClient.Disconnect();
-            return BotResult.GcTimeout;
-        }
-
-        _logger.LogInformation("[{User}] Sending commend...", _account.Username);
-        SendCommend();
-
-        var commendTask = _commendResultTcs.Task;
-        var commendTimeout = Task.Delay(TimeSpan.FromSeconds(15), ct);
-        var commendCompleted = await Task.WhenAny(commendTask, commendTimeout);
-
-        if (commendCompleted == commendTimeout)
-        {
-            _logger.LogWarning("[{User}] Commend response timed out (may still have succeeded)", _account.Username);
-        }
-
-        _sessionStore.Update(_account.Username, d => d.LastCommendedAt = DateTime.UtcNow);
-        _logger.LogInformation("[{User}] Commend sent successfully!", _account.Username);
-
-        await Task.Delay(2000, ct);
-        _steamClient.Disconnect();
-
-        return BotResult.Success;
+return loginResult;
     }
 
     private async Task<BotResult> LoginAsync(CancellationToken ct)
@@ -242,11 +190,12 @@ public class CommendBot
             if (result == BotResult.Success) return BotResult.Success;
 
             _logger.LogWarning("[{User}] Token login failed ({Result}), falling back to credentials", _account.Username, result);
-            _loginTcs = new TaskCompletionSource<BotResult>();
 
-            // Reconnect for fresh attempt
-            _steamClient.Disconnect();
-            await Task.Delay(3000, ct);
+            // Token failed — need fresh session, must reconnect
+            // Wait for disconnect to complete before reconnecting
+            await Task.Delay(2000, ct);
+
+            // Create new TCS for fresh connection
             _connectedTcs = new TaskCompletionSource<bool>();
             _steamClient.Connect();
 
@@ -254,6 +203,9 @@ public class CommendBot
             {
                 return BotResult.LoginFailed;
             }
+
+            // Reset login TCS for credentials attempt
+            _loginTcs = new TaskCompletionSource<BotResult>();
         }
 
         // Credentials-based auth via SteamKit2 v3 authentication API
@@ -381,10 +333,11 @@ public class CommendBot
 
     private void OnDisconnected(SteamClient.DisconnectedCallback cb)
     {
-        _logger.LogWarning("[{User}] Disconnected (UserInitiated={UserInitiated})", _account.Username, cb.UserInitiated);
+        _logger.LogDebug("[{User}] Disconnected (UserInitiated={UserInitiated})", _account.Username, cb.UserInitiated);
         if (!cb.UserInitiated)
             LastError = "Steam disconnected unexpectedly";
-        _loginTcs.TrySetResult(BotResult.LoginFailed);
+        if (!_loginTcs.Task.IsCompleted)
+            _loginTcs.TrySetResult(BotResult.LoginFailed);
     }
 
     private void OnLoggedOn(SteamUser.LoggedOnCallback cb)
@@ -472,6 +425,11 @@ public class EmailAuthenticator : IAuthenticator
         {
             _logger.LogError("[{User}] Steam Guard required but no email configured", _account.Username);
             throw new AuthenticationException("No email configured for Steam Guard");
+        }
+
+        if (previousCodeWasIncorrect)
+        {
+            _logger.LogWarning("[{User}] Previous code was incorrect, fetching new one...", _account.Username);
         }
 
         _logger.LogInformation("[{User}] Fetching Steam Guard code from email...", _account.Username);

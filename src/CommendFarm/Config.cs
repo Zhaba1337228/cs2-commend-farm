@@ -15,9 +15,20 @@ public class AppConfig
     public string AccountsFile { get; set; } = "accounts.txt";
     public int MatchId { get; set; } = 8;
 
+    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+
     public static AppConfig Load(string path)
     {
+        if (!File.Exists(path))
+            return new AppConfig();
+
         var json = File.ReadAllText(path);
         return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+    }
+
+    public void Save(string path)
+    {
+        var json = JsonSerializer.Serialize(this, JsonOpts);
+        File.WriteAllText(path, json);
     }
 }

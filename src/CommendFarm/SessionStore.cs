@@ -17,6 +17,7 @@ public class SessionStore
     private readonly ConcurrentDictionary<string, SessionData> _sessions = new();
     private readonly string _filePath;
     private readonly ILogger<SessionStore> _logger;
+    private readonly object _saveLock = new();
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
     public SessionStore(string filePath, ILogger<SessionStore> logger)
@@ -34,14 +35,21 @@ public class SessionStore
         lock (data)
         {
             updater(data);
+            // Save INSIDE the lock to prevent race between update and persist
+            lock (_saveLock)
+            {
+                Save();
+            }
         }
-        Save();
     }
 
     public void Set(string username, SessionData data)
     {
         _sessions[username] = data;
-        Save();
+        lock (_saveLock)
+        {
+            Save();
+        }
     }
 
     public void Load()
